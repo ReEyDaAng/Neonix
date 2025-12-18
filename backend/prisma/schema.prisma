@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String
+  displayName String
+  username    String
+  createdAt   DateTime @default(now())
+
+  messages Message[]
+}
+
+model Room {
+  id        String   @id @default(uuid())
+  name      String
+  meta      String
+  badge     String
+  createdAt DateTime @default(now())
+
+  channels Channel[]
+  messages Message[]
+}
+
+model Channel {
+  id        String   @id @default(uuid())
+  roomId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  room     Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  messages Message[] // ✅ має бути
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  roomId    String
+  channelId String
+  userId    String?
+  who       String
+  text      String
+  time      String
+  me        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, channelId])
+}
