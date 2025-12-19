@@ -31,7 +31,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="heroMark" aria-hidden>
+          <div className="heroMark" aria-hidden="true">
             <div className="markCard">
               <div className="markTop">
                 <div className="markDot" />

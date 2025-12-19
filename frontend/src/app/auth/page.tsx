@@ -15,12 +15,12 @@ export default function AuthPage() {
   const [email, setEmail] = useState("demo@neonix.app");
   const [pass, setPass] = useState("Password123!");
   const [confirm, setConfirm] = useState("");
-  const [displayName, setDisplayName] = useState("Maksym");
+  const [displayName, setDisplayName] = useState("Demo User");
   const [loading, setLoading] = useState(false);
 
   async function submit() {
     if (mode === "register" && pass !== confirm) {
-      alert(t("errPasswords"));
+      alert("Passwords do not match");
       return;
     }
     setLoading(true);
@@ -38,6 +38,11 @@ export default function AuthPage() {
     }
   }
 
+  const emailId = "auth-email";
+  const passId = "auth-pass";
+  const confirmId = "auth-confirm";
+  const displayNameId = "auth-displayName";
+
   return (
     <section className="page">
       <div className="grid2">
@@ -51,50 +56,92 @@ export default function AuthPage() {
           </div>
 
           <div className="bd">
-            <div className="tabs" role="tablist">
-              <button className={`tab ${mode === "login" ? "active" : ""}`} onClick={() => setMode("login")}>
+            <div className="seg">
+              <button
+                type="button"
+                className={`segBtn ${mode === "login" ? "active" : ""}`}
+                onClick={() => setMode("login")}
+              >
                 {t("tabLogin")}
               </button>
-              <button className={`tab ${mode === "register" ? "active" : ""}`} onClick={() => setMode("register")}>
+              <button
+                type="button"
+                className={`segBtn ${mode === "register" ? "active" : ""}`}
+                onClick={() => setMode("register")}
+              >
                 {t("tabRegister")}
               </button>
             </div>
 
             <div className="row2 mt10">
               <div className="field">
-                <div className="label">{t("lblEmail")}</div>
-                <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <label className="label" htmlFor={emailId}>
+                  {t("lblEmail")}
+                </label>
+                <input
+                  id={emailId}
+                  className="input"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
+
               <div className="field">
-                <div className="label">{t("lblPassword")}</div>
-                <input className="input" type="password" value={pass} onChange={(e) => setPass(e.target.value)} />
+                <label className="label" htmlFor={passId}>
+                  {t("lblPassword")}
+                </label>
+                <input
+                  id={passId}
+                  className="input"
+                  type="password"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  value={pass}
+                  onChange={(e) => setPass(e.target.value)}
+                />
               </div>
             </div>
 
             {mode === "register" && (
               <div className="row2">
                 <div className="field">
-                  <div className="label">{t("lblConfirm")}</div>
-                  <input className="input" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+                  <label className="label" htmlFor={confirmId}>
+                    {t("lblConfirm")}
+                  </label>
+                  <input
+                    id={confirmId}
+                    className="input"
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                  />
                 </div>
+
                 <div className="field">
-                  <div className="label">{t("lblDisplayNameReg")}</div>
-                  <input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+                  <label className="label" htmlFor={displayNameId}>
+                    {t("lblDisplayNameReg")}
+                  </label>
+                  <input
+                    id={displayNameId}
+                    className="input"
+                    autoComplete="name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                  />
                 </div>
               </div>
             )}
 
             <div className="actionsRow">
-              <button className="btn primary" onClick={submit} disabled={loading}>
+              <button className="btn primary" type="button" onClick={submit} disabled={loading}>
                 {loading ? t("btnLoading") : mode === "login" ? t("btnAuthSubmit") : t("btnRegisterSubmit")}
-              </button>
-              <button className="btn ghost" onClick={() => router.push("/landing")}>
-                {t("btnBackLanding")}
               </button>
             </div>
 
-            <p className="hint mt10">
-              {t("hintDemo")}
+            <p className="help">
+              {mode === "login" ? t("authHelpLogin") : t("authHelpRegister")}
             </p>
           </div>
         </div>
@@ -108,10 +155,18 @@ export default function AuthPage() {
           </div>
           <div className="bd">
             <div className="list">
-              <div className="item"><b>{t("as1")}</b><div className="meta">{t("as1d")}</div></div>
-              <div className="item"><b>{t("as2")}</b><div className="meta">{t("as2d")}</div></div>
-              <div className="item"><b>{t("as3")}</b><div className="meta">{t("as3d")}</div></div>
-              <div className="item"><b>{t("as4")}</b><div className="meta">{t("as4d")}</div></div>
+              <div className="item">
+                <b>{t("as1")}</b>
+                <div className="meta">{t("as1d")}</div>
+              </div>
+              <div className="item">
+                <b>{t("as2")}</b>
+                <div className="meta">{t("as2d")}</div>
+              </div>
+              <div className="item">
+                <b>{t("as3")}</b>
+                <div className="meta">{t("as3d")}</div>
+              </div>
             </div>
           </div>
         </div>

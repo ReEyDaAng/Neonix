@@ -53,7 +53,9 @@ const dict = {
     btnLoading: "Loading…",
     errPasswords: "Passwords do not match",
     hintDemo: "Demo login: demo@neonix.app / Password123!",
-
+    authHelpLogin: "Sign in to access chat and profile features.",
+    authHelpRegister: "Create an account to start using Neonix.",
+    
     authSideTitle: "What you get",
     authSideDesc: "Core modules planned in Neonix.",
     as1: "Rooms & roles", as1d: "Owner/host, moderators, participants, guests",
@@ -111,6 +113,8 @@ const dict = {
     btnLoading: "Завантаження…",
     errPasswords: "Паролі не співпадають",
     hintDemo: "Демо: demo@neonix.app / Password123!",
+    authHelpLogin: "Увійдіть, щоб отримати доступ до чату та профілю.",
+    authHelpRegister: "Створіть акаунт, щоб почати користування Neonix.",
 
     authSideTitle: "Що буде",
     authSideDesc: "Основні модулі Neonix.",
