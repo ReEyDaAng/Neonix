@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import { PrismaService } from "../../modules/prisma/prisma.service";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_change_me";
@@ -15,7 +16,7 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: {
         email,
-        password,
+        password: await bcrypt.hash(password, 10),
         displayName: displayName?.trim() || "User",
         username: "@" + email.split("@")[0]
       }
@@ -26,7 +27,7 @@ export class AuthService {
 
   async login(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user || user.password !== password) throw new UnauthorizedException("Invalid credentials");
+    if (!user || !(await bcrypt.compare(password, user.password))) throw new UnauthorizedException("Invalid credentials");
     return this.sign(user);
   }
 

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
+import { api } from "@/lib/api";
+import { useAuth } from "@/state/auth";
 
 type Room = { id: string; name: string; meta: string; badge: string };
 type Channel = { id: string; roomId: string; name: string };
@@ -15,34 +17,41 @@ type Message = {
   me?: boolean;
 };
 
+const WS_URL =
+  process.env.NEXT_PUBLIC_WS_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:4000";
+
 export default function ChatPage() {
-  const router = useRouter();
-  const [user, setUser] = useState({ displayName: "User" }); // Mock user for demo
+  const { user } = useAuth();
 
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [roomId, setRoomId] = useState<string>("room1");
-  const [channelsHidden, setChannelsHidden] = useState<boolean>(false);
-  const [channelEverClicked, setChannelEverClicked] = useState<boolean>(false);
-  const [channelId, setChannelId] = useState<string>("general");
+  const [roomId, setRoomId] = useState<string>("");
+
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [channelId, setChannelId] = useState<string>("");
+
+  // Старий UX-стан: спочатку “Home”, чат відкривається після кліку по каналу
+  const [channelsHidden, setChannelsHidden] = useState(false);
+  const [channelEverClicked, setChannelEverClicked] = useState(false);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
 
-  useEffect(() => {
-    setRooms([
-      { id: "room1", name: "Neonix", meta: "prototype", badge: "N" },
-      { id: "room2", name: "SumDU", meta: "study", badge: "S" },
-      { id: "room3", name: "Friends", meta: "hangout", badge: "F" },
-    ]);
-  }, []);
+  // typing
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const typingOffTimer = useRef<number | null>(null);
 
-  useEffect(() => {
-    setChannels([
-      { id: "general", roomId, name: "general" },
-      { id: "support", roomId, name: "support" },
-      { id: "design", roomId, name: "design" },
-    ]);
-  }, [roomId]);
+  // unread (мінімально: рахуємо на рівні channelId)
+  const [unread, setUnread] = useState<Record<string, number>>({});
+
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  const meName = useMemo(
+    () => user?.displayName || user?.username || "User",
+    [user]
+  );
 
   const viewState = useMemo<"home" | "server" | "channel">(() => {
     if (!channelEverClicked) return "home";
@@ -50,298 +59,455 @@ export default function ChatPage() {
     return "channel";
   }, [channelEverClicked, channelsHidden]);
 
+  const room = useMemo(() => rooms.find((r) => r.id === roomId), [rooms, roomId]);
+
+  const visibleMessages = useMemo(() => {
+    if (!roomId || !channelId) return [];
+    return messages.filter((m) => m.roomId === roomId && m.channelId === channelId);
+  }, [messages, roomId, channelId]);
+
+  // ---------- DATA: rooms ----------
+  useEffect(() => {
+    let alive = true;
+
+    api.chat
+      .rooms()
+      .then((data) => {
+        if (!alive) return;
+        setRooms(data || []);
+        if (!roomId && data?.[0]?.id) setRoomId(data[0].id);
+      })
+      .catch(() => {});
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------- DATA: channels ----------
+  useEffect(() => {
+    if (!roomId) return;
+
+    let alive = true;
+
+    api.chat
+      .channels(roomId)
+      .then((data) => {
+        if (!alive) return;
+        setChannels(data || []);
+        // Підсвітка першого каналу (але viewState все одно "home" до кліку)
+        if (!channelId && data?.[0]?.id) setChannelId(data[0].id);
+      })
+      .catch(() => {});
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]);
+
+  // ---------- DATA: messages ----------
+  useEffect(() => {
+    if (!roomId || !channelId) return;
+    if (!channelEverClicked || channelsHidden) return; // не вантажимо чат, доки користувач не “відкрив” канал
+
+    let alive = true;
+
+    api.chat
+      .messages(roomId, channelId)
+      .then((data) => {
+        if (!alive) return;
+        setMessages(data || []);
+        // коли відкрили канал — скидаємо unread
+        setUnread((prev) => ({ ...prev, [channelId]: 0 }));
+      })
+      .catch(() => {});
+
+    return () => {
+      alive = false;
+    };
+  }, [roomId, channelId, channelEverClicked, channelsHidden]);
+
+  // ---------- WS connect once ----------
+  useEffect(() => {
+    const s = io(WS_URL, { transports: ["websocket"] });
+    socketRef.current = s;
+
+    s.on("connect", () => {
+      // join буде в ефекті нижче
+    });
+
+    s.on("message", (msg: Message) => {
+      setMessages((prev) => {
+        // мінімальний анти-дублікат (на випадок повторів)
+        if (prev.some((p) => p.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+
+      // unread, якщо повідомлення не в активному каналі або чат “закритий”
+      const isCurrent =
+        msg.roomId === roomId &&
+        msg.channelId === channelId &&
+        channelEverClicked &&
+        !channelsHidden;
+
+      if (!isCurrent) {
+        setUnread((prev) => ({
+          ...prev,
+          [msg.channelId]: (prev[msg.channelId] || 0) + 1,
+        }));
+      }
+    });
+
+    s.on("typing", (payload: { who: string; typing: boolean }) => {
+      const who = payload?.who?.trim();
+      if (!who || who === meName) return;
+
+      setTypingUsers((prev) => {
+        const has = prev.includes(who);
+        if (payload.typing && !has) return [...prev, who];
+        if (!payload.typing && has) return prev.filter((x) => x !== who);
+        return prev;
+      });
+    });
+
+    // room-level (необов’язково, але корисно)
+    s.on("roomMessage", (payload: { roomId: string; channelId: string }) => {
+      // якщо ти захочеш робити unread “на сервері”, тут можна апдейтити
+      // зараз ми вже рахуємо unread по "message"
+      void payload;
+    });
+
+    return () => {
+      s.disconnect();
+      socketRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------- WS re-join on selection ----------
+  useEffect(() => {
+    const s = socketRef.current;
+    if (!s || !roomId) return;
+
+    // Коли чат відкритий (channel view) — підписуємось на конкретний канал.
+    // Інакше — тільки на room (для unread/roomMessage).
+    const joinPayload =
+      channelEverClicked && !channelsHidden && channelId
+        ? { roomId, channelId }
+        : { roomId };
+
+    s.emit("join", joinPayload);
+  }, [roomId, channelId, channelEverClicked, channelsHidden]);
+
+  // ---------- scroll ----------
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [visibleMessages.length, channelId, viewState]);
+
+  function selectRoom(id: string) {
+    setRoomId(id);
+    setChannelsHidden(false);
+    setChannelEverClicked(false);
+    setChannelId("");
+    setTypingUsers([]);
+  }
+
   function openChannel(id: string) {
     setChannelEverClicked(true);
     setChannelsHidden(false);
     setChannelId(id);
+    setTypingUsers([]);
+    setUnread((prev) => ({ ...prev, [id]: 0 }));
   }
 
   function send() {
     const text = draft.trim();
-    if (!text) return;
+    if (!text || !roomId || !channelId) return;
+    if (!channelEverClicked || channelsHidden) return;
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: String(Date.now()),
-        roomId,
-        channelId,
-        who: user?.displayName || "Me",
-        text,
-        time: new Date().toLocaleTimeString(),
-        me: true,
-      },
-    ]);
+    const payload = {
+      roomId,
+      channelId,
+      who: meName,
+      text,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    const s = socketRef.current;
+    if (s?.connected) {
+      s.emit("message", payload, () => {});
+    } else {
+      api.chat.send(roomId, channelId, payload as any).catch(() => {});
+    }
+
+    // зупиняємо typing
+    if (s?.connected) s.emit("typing", { roomId, channelId, who: meName, typing: false });
+
     setDraft("");
   }
 
+  function onDraftKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      send();
+    }
+  }
+
+  function onDraftChange(v: string) {
+    setDraft(v);
+
+    const s = socketRef.current;
+    if (!s?.connected) return;
+    if (!roomId || !channelId) return;
+    if (!channelEverClicked || channelsHidden) return;
+
+    // typing true
+    s.emit("typing", { roomId, channelId, who: meName, typing: true });
+
+    // typing false after idle
+    if (typingOffTimer.current) window.clearTimeout(typingOffTimer.current);
+    typingOffTimer.current = window.setTimeout(() => {
+      s.emit("typing", { roomId, channelId, who: meName, typing: false });
+    }, 900);
+  }
+
+  const typingLine = useMemo(() => {
+    if (viewState !== "channel") return "";
+    if (typingUsers.length === 0) return "";
+    if (typingUsers.length === 1) return `${typingUsers[0]} typing…`;
+    if (typingUsers.length === 2) return `${typingUsers[0]} and ${typingUsers[1]} typing…`;
+    return `${typingUsers[0]} and ${typingUsers.length - 1} others typing…`;
+  }, [typingUsers, viewState]);
+
   return (
-    <section className="chatPage" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#1a1d24', color: '#fff' }}>
-      <div className="chatShell" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+    <section className="page chatPage" aria-label="Chat">
+      <div className={"shell " + `state-${viewState} ` + (channelsHidden ? "channels-hidden" : "")}>
         {/* LEFT: Servers */}
-        <aside className="serversWide" aria-label="Servers" style={{ width: 280, background: '#13151a', borderRight: '1px solid #2a2d35' }}>
-          <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="phd" style={{ padding: 16, borderBottom: '1px solid #2a2d35', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <b>Servers</b>
+        <aside className="panel serversBar" aria-label="Servers">
+          <div className="phd">
+            <b>Servers</b>
+            <button type="button" className="btn" aria-label="Create or join server" title="Create / Join">
+              ＋
+            </button>
+          </div>
+
+          {/* Wide list (Home + when channels hidden) */}
+          <div className="serversWideList" role="list">
+            {rooms.map((r) => (
               <button
+                key={r.id}
                 type="button"
-                className="btn"
-                style={{ padding: '8px 10px', background: '#3a3f4a', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer' }}
-                aria-label="Create or join server"
-                title="Create / Join"
-                onClick={() => setRoomId("roomAdd")}
+                className={`srvRow ${r.id === roomId ? "active" : ""}`}
+                aria-label={`Select server ${r.name}`}
+                onClick={() => selectRoom(r.id)}
               >
-                ＋
+                <div className="srvAvatar" aria-hidden="true">
+                  {r.badge}
+                </div>
+                <div className="srvText">
+                  <b>{r.name}</b>
+                  <span>{r.meta}</span>
+                </div>
               </button>
-            </div>
+            ))}
 
-            <div className="serversBody" style={{ flex: 1, overflow: 'auto', padding: 12 }}>
-              <div className="serversWideList" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {rooms.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    className={`srvRow ${r.id === roomId ? "active" : ""}`}
-                    aria-label={`Select server ${r.name}`}
-                    onClick={() => setRoomId(r.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: 12,
-                      background: r.id === roomId ? '#3a3f4a' : 'transparent',
-                      border: 'none',
-                      borderRadius: 8,
-                      color: '#fff',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      width: '100%'
-                    }}
-                  >
-                    <div className="srvAvatar" aria-hidden="true" style={{ width: 40, height: 40, borderRadius: '50%', background: '#5865f2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                      {r.badge}
-                    </div>
-                    <div className="srvText" style={{ flex: 1 }}>
-                      <b>{r.name}</b>
-                      <div className="meta" style={{ fontSize: '0.85em', color: '#b0b3b8' }}>{r.meta}</div>
-                    </div>
-                  </button>
-                ))}
-
-                <button
-                  type="button"
-                  className="srvRow"
-                  aria-label="Create or join"
-                  onClick={() => setRoomId("roomAdd")}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: 12,
-                    background: 'transparent',
-                    border: '1px dashed #3a3f4a',
-                    borderRadius: 8,
-                    color: '#fff',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    width: '100%'
-                  }}
-                >
-                  <div className="srvAvatar" aria-hidden="true" style={{ width: 40, height: 40, borderRadius: '50%', background: '#3a3f4a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                    ＋
-                  </div>
-                  <div className="srvText" style={{ flex: 1 }}>
-                    <b>Create / Join</b>
-                    <div className="meta" style={{ fontSize: '0.85em', color: '#b0b3b8' }}>prototype</div>
-                  </div>
-                </button>
+            <button type="button" className="srvRow" aria-label="Create or join" style={{ borderStyle: "dashed" }}>
+              <div className="srvAvatar" aria-hidden="true">
+                ＋
               </div>
-            </div>
+              <div className="srvText">
+                <b>Create / Join</b>
+                <span>prototype</span>
+              </div>
+            </button>
+          </div>
+
+          {/* Icons list (Server/Channel states) */}
+          <div className="serversIconsList" role="list">
+            {rooms.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                className={`srvBtn ${r.id === roomId ? "active" : ""}`}
+                aria-label={`Select server ${r.name}`}
+                onClick={() => selectRoom(r.id)}
+              >
+                <span className="srvBadge" aria-hidden="true">
+                  {r.badge}
+                </span>
+                <span className="pill srvTip">{r.name}</span>
+              </button>
+            ))}
           </div>
         </aside>
 
         {/* MIDDLE: Channels */}
-        <aside
-          className={`channels ${channelsHidden ? "hidden" : ""}`}
-          aria-label="Channels"
-          style={{
-            width: channelsHidden ? 0 : 240,
-            background: '#1a1d24',
-            borderRight: '1px solid #2a2d35',
-            overflow: 'hidden',
-            transition: 'width 0.2s'
-          }}
-        >
-          <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="phd" style={{ padding: 16, borderBottom: '1px solid #2a2d35', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <b>Channels</b>
+        {viewState !== "home" && !channelsHidden && (
+          <aside className="panel channelsBar" aria-label="Channels">
+            <div className="channelsHead">
+              <div className="channelsIcon" aria-hidden="true">
+                {room?.badge || "#"}
+              </div>
+              <div className="channelsName">
+                <b>{room?.name || "Server"}</b>
+                <span>{room?.meta || ""}</span>
+              </div>
+
               <button
                 type="button"
-                className="btn ghost"
+                className="btn ghost channelsToggle"
                 onClick={() => setChannelsHidden(true)}
                 aria-label="Hide channels"
-                style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #3a3f4a', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: '0.85em' }}
+                title="Hide channels"
               >
                 Hide
               </button>
             </div>
 
-            <div className="channelsList" style={{ flex: 1, overflow: 'auto', padding: 12 }}>
-              {channels.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`chItem ${c.id === channelId ? "active" : ""}`}
-                  aria-label={`Open channel ${c.name}`}
-                  onClick={() => openChannel(c.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 12px',
-                    background: c.id === channelId ? '#3a3f4a' : 'transparent',
-                    border: 'none',
-                    borderRadius: 6,
-                    color: '#fff',
-                    cursor: 'pointer',
-                    width: '100%',
-                    marginBottom: 4,
-                    textAlign: 'left'
-                  }}
-                >
-                  <div className="chIcon" aria-hidden="true" style={{ fontSize: '1.2em', color: '#b0b3b8' }}>
-                    #
-                  </div>
-                  <div className="chLabel">{c.name}</div>
-                </button>
-              ))}
-            </div>
+            <div className="channelsList" role="list">
+              {channels.map((c) => {
+                const u = unread[c.id] || 0;
 
-            {channelsHidden && (
-              <div className="channelsReveal" style={{ padding: 16 }}>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setChannelsHidden(false)}
-                  aria-label="Show channels"
-                  style={{ padding: '8px 12px', background: '#3a3f4a', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', width: '100%' }}
-                >
-                  Show channels
-                </button>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* RIGHT: Main */}
-        <main className="main" aria-label="Chat" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="phd" style={{ padding: 16, borderBottom: '1px solid #2a2d35', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <b>
-                  {viewState === "home"
-                    ? "Home"
-                    : viewState === "server"
-                    ? "Server"
-                    : `#${channelId}`}
-                </b>
-                <div className="meta" style={{ fontSize: '0.85em', color: '#b0b3b8' }}>
-                  {viewState === "home"
-                    ? "Pick a chat to start"
-                    : "Neonix prototype"}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn"
-                  style={{ padding: '8px 10px', background: '#3a3f4a', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-                  title="Voice"
-                  aria-label="Voice"
-                >
-                  🎧
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  style={{ padding: '8px 10px', background: '#3a3f4a', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-                  title="Video"
-                  aria-label="Video"
-                >
-                  🎥
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  style={{ padding: '8px 10px', background: '#3a3f4a', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-                  title="Screen share"
-                  aria-label="Screen share"
-                >
-                  🖥️
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  style={{ padding: '8px 10px', background: '#3a3f4a', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-                  title="Annotate"
-                  aria-label="Annotate"
-                >
-                  ✏️
-                </button>
-              </div>
-            </div>
-
-            {viewState !== "channel" ? (
-              <div className="empty" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-                <div className="emptyTitle" style={{ fontSize: '1.5em', fontWeight: 'bold', marginBottom: 8 }}>Select a channel</div>
-                <div className="emptyDesc" style={{ color: '#b0b3b8' }}>
-                  Use the channel list to open a chat.
-                </div>
-              </div>
-            ) : (
-              <>
-                <div 
-                  className="messages" 
-                  role="log" 
-                  aria-label="Messages"
-                  aria-live="polite"
-                  style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}
-                >
-                  {messages.map((m) => (
-                    <div key={m.id} className={`msg ${m.me ? "me" : ""}`} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 12, background: m.me ? '#2a3f5f' : '#2a2d35', borderRadius: 8 }}>
-                      <div className="who" style={{ fontWeight: 'bold', fontSize: '0.9em' }}>{m.who}</div>
-                      <div className="txt">{m.text}</div>
-                      <div className="time" style={{ fontSize: '0.75em', color: '#b0b3b8' }}>{m.time}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="composer" style={{ padding: 16, borderTop: '1px solid #2a2d35', display: 'flex', gap: 8 }}>
-                  <input
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    placeholder="Type a message…"
-                    aria-label="Message"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") send();
-                    }}
-                    style={{ flex: 1, padding: '10px 14px', background: '#2a2d35', border: '1px solid #3a3f4a', borderRadius: 6, color: '#fff', outline: 'none' }}
-                  />
+                return (
                   <button
-                    className="btn primary"
+                    key={c.id}
                     type="button"
-                    onClick={send}
-                    aria-label="Send message"
-                    style={{ padding: '10px 20px', background: '#5865f2', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}
+                    className={`chItem ${c.id === channelId ? "active" : ""}`}
+                    aria-label={`Open channel ${c.name}`}
+                    onClick={() => openChannel(c.id)}
                   >
-                    Send
+                    <div className="chIcon" aria-hidden="true">
+                      #
+                    </div>
+                    <div className="chLabel" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span>{c.name}</span>
+                      {u > 0 && <span className="pill">{u}</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+        )}
+
+        {/* MAIN */}
+        <main className="panel" aria-label="Chat panel">
+          <div className="chatHeader">
+            <div>
+              <h2 className="chatTitle">
+                {viewState === "home"
+                  ? "Home"
+                  : viewState === "server"
+                    ? room?.name || "Server"
+                    : `#${channels.find((x) => x.id === channelId)?.name || channelId}`}
+              </h2>
+
+              <p className="chatSub">
+                {viewState === "home"
+                  ? "Pick a chat to start"
+                  : viewState === "server"
+                    ? "Select a channel to open a chat"
+                    : typingLine || "Realtime via WebSocket"}
+              </p>
+
+              {viewState === "server" && (
+                <div className="chatMetaRow">
+                  <button type="button" className="btn" onClick={() => setChannelsHidden(false)} aria-label="Show channels">
+                    Show channels
                   </button>
                 </div>
-              </>
-            )}
+              )}
+            </div>
+
+            <div className="chatMetaRow" aria-label="Chat actions">
+              <button type="button" className="btn" aria-label="Voice" title="Voice">
+                🎧
+              </button>
+              <button type="button" className="btn" aria-label="Video" title="Video">
+                🎥
+              </button>
+              <button type="button" className="btn" aria-label="Share" title="Share">
+                🖥️
+              </button>
+              <button type="button" className="btn" aria-label="Annotate" title="Annotate">
+                ✏️
+              </button>
+            </div>
           </div>
+
+          {viewState !== "channel" ? (
+            <div className="chatPlaceholder">
+              <div className="box">
+                <h3 style={{ margin: 0 }}>Select a channel</h3>
+                <p style={{ margin: "10px 0 0" }}>Use the channel list to open a chat.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="chatArea" ref={scrollerRef} aria-label="Messages">
+                {visibleMessages.length === 0 ? (
+                  <div className="muted">No messages yet. Say hi 👋</div>
+                ) : (
+                  visibleMessages.map((m) => (
+                    <div key={m.id} className={`msg ${m.who === meName ? "me" : ""}`}>
+                      <div className="who">
+                        <span className="dot" aria-hidden="true" />
+                        <span>{m.who}</span>
+                        <span className="time">{m.time}</span>
+                      </div>
+                      <div className="text">{m.text}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="composer" aria-label="Message composer">
+                <input
+                  value={draft}
+                  onChange={(e) => onDraftChange(e.target.value)}
+                  onKeyDown={onDraftKeyDown}
+                  placeholder={`Message #${channels.find((x) => x.id === channelId)?.name || channelId}`}
+                  aria-label="Message input"
+                />
+                <button type="button" className="btn primary" onClick={send} aria-label="Send">
+                  Send
+                </button>
+              </div>
+            </>
+          )}
         </main>
+
+        {/* RIGHT */}
+        <aside className="panel rightCol" aria-label="Right sidebar">
+          <div className="phd">
+            <b>Friends</b>
+            <span className="pill">
+              <span className="dotMini" aria-hidden="true" />
+              Online
+            </span>
+          </div>
+
+          <div className="pbd">
+            <div className="list">
+              <div className="item">
+                <b>Roma</b>
+                <div className="meta">Online • shooter mode</div>
+              </div>
+              <div className="item">
+                <b>Study group</b>
+                <div className="meta">3 online</div>
+              </div>
+              <div className="item">
+                <b>New friend</b>
+                <div className="meta">Invite link</div>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </section>
   );
