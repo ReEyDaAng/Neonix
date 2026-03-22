@@ -1,7 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#0b1020"/><stop offset="100%" stop-color="#121933"/></linearGradient>
-    <linearGradient id="line" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#49d4ff"/><stop offset="100%" stop-color="#9d7bff"/></linearGradient>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0b1020"/>
+      <stop offset="100%" stop-color="#121933"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#49d4ff"/>
+      <stop offset="100%" stop-color="#9d7bff"/>
+    </linearGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect x="64" y="70" width="1072" height="490" rx="34" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.16)"/>
@@ -21,5 +27,5 @@
   <circle cx="902" cy="236" r="42" fill="rgba(73,212,255,0.18)" stroke="#49d4ff"/>
   <circle cx="1018" cy="236" r="42" fill="rgba(157,123,255,0.18)" stroke="#9d7bff"/>
   <text x="110" y="520" fill="#eef2ff" font-size="54" font-family="Arial, Helvetica, sans-serif" font-weight="700">Neonix</text>
-  <text x="110" y="566" fill="#b7c0e0" font-size="28" font-family="Arial, Helvetica, sans-serif">Bachelor thesis landing page • Accessibility & SEO stage</text>
+  <text x="110" y="566" fill="#b7c0e0" font-size="28" font-family="Arial, Helvetica, sans-serif">Bachelor thesis landing page • Content stage</text>
 </svg>

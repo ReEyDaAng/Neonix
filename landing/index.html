@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Neonix — Бакалаврська робота | Доступність та SEO</title>
-  <meta name="description" content="Односторінковий сайт бакалаврської роботи про платформу Neonix з базовою SEO-оптимізацією, семантичною розміткою та покращеною доступністю." />
-  <meta name="keywords" content="Neonix, бакалаврська робота, real-time communication, accessibility, SEO, chat platform, Next.js, NestJS" />
+  <title>Neonix — Бакалаврська робота | Контентне наповнення</title>
+  <meta name="description" content="Сайт-візитка бакалаврської роботи про платформу Neonix для комунікації та спільної взаємодії користувачів у реальному часі." />
+  <meta name="keywords" content="Neonix, бакалаврська робота, real-time communication, chat platform, collaborative interaction, Next.js, NestJS, PostgreSQL" />
   <meta name="author" content="Maksym Pylypushko" />
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#0b1020" />
+
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="uk_UA" />
   <meta property="og:title" content="Neonix — Бакалаврська робота" />
@@ -16,15 +17,18 @@
   <meta property="og:url" content="https://reeydaang.github.io/Neonix/landing/" />
   <meta property="og:image" content="https://reeydaang.github.io/Neonix/landing/assets/preview-cover.svg" />
   <meta property="og:site_name" content="Neonix Bachelor Landing" />
+
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Neonix — Бакалаврська робота" />
-  <meta name="twitter:description" content="Лендінг бакалаврської роботи про платформу Neonix з орієнтацією на SEO, доступність та адаптивність." />
+  <meta name="twitter:description" content="Лендінг бакалаврської роботи про платформу Neonix з описом актуальності, мети, завдань та очікуваних результатів." />
   <meta name="twitter:image" content="https://reeydaang.github.io/Neonix/landing/assets/preview-cover.svg" />
+
   <link rel="canonical" href="https://reeydaang.github.io/Neonix/landing/" />
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.svg" />
   <link rel="manifest" href="./site.webmanifest" />
   <link rel="stylesheet" href="./styles.css" />
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -35,7 +39,8 @@
     "inLanguage": "uk",
     "genre": "Bachelor thesis landing page",
     "url": "https://reeydaang.github.io/Neonix/landing/",
-    "description": "Односторінковий сайт для представлення бакалаврської роботи про платформу Neonix."
+    "description": "Односторінковий сайт для представлення бакалаврської роботи про платформу Neonix.",
+    "keywords": ["Neonix", "real-time communication", "chat platform", "Next.js", "NestJS"]
   }
   </script>
 </head>
@@ -51,8 +56,11 @@
       <nav class="site-nav" aria-label="Основна навігація">
         <ul>
           <li><a href="#about">Про роботу</a></li>
-          <li><a href="#advantages">Переваги</a></li>
-          <li><a href="#goals">Мета</a></li>
+          <li><a href="#relevance">Актуальність</a></li>
+          <li><a href="#goal">Мета</a></li>
+          <li><a href="#tasks">Завдання</a></li>
+          <li><a href="#methodology">Методологія</a></li>
+          <li><a href="#results">Результати</a></li>
           <li><a href="#contacts">Контакти</a></li>
         </ul>
       </nav>
@@ -65,19 +73,25 @@
         <div class="hero-copy">
           <p class="eyebrow">Бакалаврська робота</p>
           <h1 id="hero-title">Neonix — платформа для комунікації та взаємодії в реальному часі</h1>
+          <p class="subtitle">Neonix — platform for real-time communication and collaborative interaction</p>
           <p class="lead">
-            На другому етапі додано семантичну розмітку, accessibility-покращення, розширені SEO-метадані,
-            Open Graph, Twitter Card та Schema.org розмітку.
+            Односторінковий сайт для представлення бакалаврської роботи, присвяченої розробці сучасної
+            вебплатформи для спілкування, обміну повідомленнями та організації взаємодії користувачів у реальному часі.
           </p>
           <div class="hero-actions" aria-label="Основні дії">
-            <a class="button button-primary" href="#about">Детальніше</a>
-            <a class="button button-secondary" href="https://github.com/ReEyDaAng/Neonix">Репозиторій</a>
+            <a class="button button-primary" href="#about">Ознайомитися з роботою</a>
+            <a class="button button-secondary" href="https://github.com/ReEyDaAng/Neonix">Репозиторій проєкту</a>
+          </div>
+
+          <div class="keyword-box" aria-label="Ключові слова">
+            <strong>Ключові слова:</strong>
+            real-time communication, web platform, chat system, collaborative interaction, Next.js, NestJS, PostgreSQL, Redis, WebSocket.
           </div>
         </div>
 
         <figure class="hero-visual">
-          <img src="./assets/preview-cover.svg" alt="Графічне представлення платформи Neonix із блоками чату, каналів та аналітики" width="640" height="420" />
-          <figcaption>Ілюстративний макет для презентації дипломного проєкту</figcaption>
+          <img src="./assets/preview-cover.svg" alt="Графічне представлення системи Neonix з каналами, повідомленнями та взаємодією користувачів" width="640" height="420" />
+          <figcaption>Концептуальна ілюстрація бакалаврського проєкту Neonix</figcaption>
         </figure>
       </div>
     </section>
@@ -85,52 +99,105 @@
     <section id="about" class="section" aria-labelledby="about-title">
       <div class="container card-grid">
         <article class="card">
-          <h2 id="about-title">Що реалізовано на цьому етапі</h2>
-          <p>Сторінка отримала зрозумілу заголовкову структуру, семантичні секції, альтернативні тексти для зображень, фокус-стани для клавіатурної навігації та додаткові SEO-метадані.</p>
+          <h2 id="about-title">Короткий опис</h2>
+          <p>
+            Neonix — це вебплатформа для комунікації користувачів у реальному часі, що поєднує текстовий чат,
+            структуру кімнат і каналів, механізми авторизації та сучасний адаптивний інтерфейс.
+          </p>
         </article>
 
-        <aside class="card" aria-labelledby="seo-title">
-          <h2 id="seo-title">SEO і discoverability</h2>
-          <ul class="feature-list">
-            <li>meta description і keywords</li>
-            <li>Open Graph теги</li>
-            <li>Twitter Card теги</li>
-            <li>canonical URL</li>
-            <li>Schema.org JSON-LD</li>
-          </ul>
-        </aside>
+        <article class="card">
+          <h2>Посилання на проєкт</h2>
+          <p><strong>Репозиторій:</strong> <a href="https://github.com/ReEyDaAng/Neonix">github.com/ReEyDaAng/Neonix</a></p>
+          <p><strong>Продакшн-версія:</strong> <a href="https://neonix.app/landing">neonix.app/landing</a></p>
+        </article>
       </div>
     </section>
 
-    <section id="advantages" class="section" aria-labelledby="advantages-title">
-      <div class="container">
-        <h2 id="advantages-title">Покращення доступності</h2>
-        <div class="card-grid">
-          <article class="card">
-            <h3>Семантична структура</h3>
-            <p>Використано теги <code>header</code>, <code>nav</code>, <code>main</code>, <code>section</code>, <code>article</code>, <code>aside</code> і <code>footer</code>.</p>
-          </article>
-          <article class="card">
-            <h3>Навігація з клавіатури</h3>
-            <p>Додано skip-link та видимі focus-стани для елементів керування.</p>
-          </article>
-          <article class="card">
-            <h3>Альтернативні описи</h3>
-            <p>Усі інформативні зображення мають альтернативний текст, а декоративні — позначені як приховані.</p>
-          </article>
+    <section id="relevance" class="section" aria-labelledby="relevance-title">
+      <div class="container card">
+        <h2 id="relevance-title">Актуальність теми</h2>
+        <p>
+          У сучасному цифровому середовищі зростає потреба у платформах, які забезпечують швидку, зручну
+          та масштабовану комунікацію між користувачами. Особливо актуальними є рішення, що дозволяють
+          організовувати спілкування у межах кімнат і каналів, підтримують обмін повідомленнями у реальному часі
+          та мають сучасний вебінтерфейс.
+        </p>
+        <p>
+          Розробка платформи Neonix є актуальною, оскільки поєднує практичні завдання веброзробки,
+          побудову клієнт-серверної архітектури, використання сучасних fullstack технологій та принципів
+          розгортання реального програмного продукту.
+        </p>
+      </div>
+    </section>
+
+    <section id="goal" class="section" aria-labelledby="goal-title">
+      <div class="container card-grid">
+        <article class="card">
+          <h2 id="goal-title">Мета дослідження</h2>
+          <p>
+            Розробити сучасну вебплатформу для комунікації та спільної взаємодії користувачів у реальному часі,
+            яка забезпечує обмін повідомленнями, підтримку структурованого спілкування через кімнати та канали,
+            а також демонструє застосування сучасних технологій fullstack-розробки.
+          </p>
+        </article>
+
+        <article class="card" id="tasks" aria-labelledby="tasks-title">
+          <h2 id="tasks-title">Основні завдання</h2>
+          <ul class="feature-list">
+            <li>Проаналізувати сучасні підходи до створення платформ комунікації у реальному часі.</li>
+            <li>Спроєктувати архітектуру клієнтської та серверної частини застосунку.</li>
+            <li>Реалізувати механізми авторизації, чатів, кімнат і каналів.</li>
+            <li>Забезпечити інтеграцію API, WebSocket та бази даних.</li>
+            <li>Розгорнути застосунок у продакшн-середовищі та підготувати його до подальшого розвитку.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="methodology" class="section" aria-labelledby="methodology-title">
+      <div class="container card">
+        <h2 id="methodology-title">Методологія дослідження</h2>
+        <p>
+          У процесі розробки використовуються методи проєктування клієнт-серверних систем, принципи
+          компонентного підходу до побудови інтерфейсу, ORM для взаємодії з базою даних, а також
+          підходи до контейнеризації та розгортання застосунків.
+        </p>
+        <div class="method-grid">
+          <div class="mini-card">
+            <h3>Frontend</h3>
+            <p>Next.js, React, TypeScript</p>
+          </div>
+          <div class="mini-card">
+            <h3>Backend</h3>
+            <p>NestJS, Prisma ORM, Socket.io</p>
+          </div>
+          <div class="mini-card">
+            <h3>Data & Infra</h3>
+            <p>PostgreSQL, Redis, Docker, VPS</p>
+          </div>
         </div>
       </div>
     </section>
 
-    <section id="goals" class="section" aria-labelledby="goals-title">
-      <div class="container card">
-        <h2 id="goals-title">Що буде додано на наступному етапі</h2>
-        <ol class="number-list">
-          <li>Повне контентне наповнення під тему бакалаврської роботи</li>
-          <li>Актуальність теми, мета дослідження та основні завдання</li>
-          <li>Очікувані результати та посилання на супровідні матеріали</li>
-          <li>Контактна інформація та академічний контекст</li>
-        </ol>
+    <section id="results" class="section" aria-labelledby="results-title">
+      <div class="container card-grid">
+        <article class="card">
+          <h2 id="results-title">Очікувані результати</h2>
+          <p>
+            Результатом дослідження має стати працездатний вебзастосунок для комунікації користувачів,
+            що забезпечує зручний інтерфейс, обмін повідомленнями в реальному часі, базову масштабованість
+            і можливість подальшого розширення функціоналу.
+          </p>
+        </article>
+
+        <article class="card">
+          <h2>Ілюстративні матеріали</h2>
+          <p>
+            Як графічне представлення об'єкта дослідження використано візуальний макет інтерфейсу Neonix,
+            який демонструє структуру чатів, каналів та елементів взаємодії користувача із системою.
+          </p>
+        </article>
       </div>
     </section>
   </main>
@@ -138,13 +205,14 @@
   <footer id="contacts" class="site-footer" role="contentinfo">
     <div class="container footer-layout">
       <div>
-        <h2 class="footer-title">Контакти</h2>
+        <h2 class="footer-title">Контактна інформація</h2>
         <p><strong>Автор:</strong> Maksym Pylypushko</p>
         <p><strong>GitHub:</strong> <a href="https://github.com/ReEyDaAng/Neonix">github.com/ReEyDaAng/Neonix</a></p>
+        <p><strong>Сайт проєкту:</strong> <a href="https://neonix.app/landing">neonix.app/landing</a></p>
       </div>
       <div>
-        <p><strong>Статус етапу:</strong> Accessibility & SEO</p>
-        <p><strong>Наступний крок:</strong> Контентне наповнення</p>
+        <p><strong>Етап:</strong> Content Implementation</p>
+        <p><strong>Наступний крок:</strong> Стилізація та адаптивність</p>
       </div>
     </div>
   </footer>
