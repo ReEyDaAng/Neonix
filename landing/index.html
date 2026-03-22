@@ -3,41 +3,55 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Neonix — Бакалаврська робота</title>
-  <meta
-    name="description"
-    content="Лендінг бакалаврської роботи про платформу Neonix для комунікації та спільної взаємодії користувачів у реальному часі."
-  />
-  <meta
-    name="keywords"
-    content="Neonix, бакалаврська робота, чат, web platform, real-time communication, Next.js, NestJS"
-  />
+  <title>Neonix — Бакалаврська робота | Доступність та SEO</title>
+  <meta name="description" content="Односторінковий сайт бакалаврської роботи про платформу Neonix з базовою SEO-оптимізацією, семантичною розміткою та покращеною доступністю." />
+  <meta name="keywords" content="Neonix, бакалаврська робота, real-time communication, accessibility, SEO, chat platform, Next.js, NestJS" />
   <meta name="author" content="Maksym Pylypushko" />
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#0b1020" />
-
   <meta property="og:type" content="website" />
+  <meta property="og:locale" content="uk_UA" />
   <meta property="og:title" content="Neonix — Бакалаврська робота" />
-  <meta
-    property="og:description"
-    content="Односторінковий сайт для представлення бакалаврської роботи про платформу Neonix."
-  />
+  <meta property="og:description" content="Презентаційний лендінг бакалаврської роботи про платформу Neonix для комунікації у реальному часі." />
   <meta property="og:url" content="https://reeydaang.github.io/Neonix/landing/" />
-  <meta property="og:image" content="https://reeydaang.github.io/Neonix/landing/assets/preview-cover.png" />
-
+  <meta property="og:image" content="https://reeydaang.github.io/Neonix/landing/assets/preview-cover.svg" />
+  <meta property="og:site_name" content="Neonix Bachelor Landing" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Neonix — Бакалаврська робота" />
+  <meta name="twitter:description" content="Лендінг бакалаврської роботи про платформу Neonix з орієнтацією на SEO, доступність та адаптивність." />
+  <meta name="twitter:image" content="https://reeydaang.github.io/Neonix/landing/assets/preview-cover.svg" />
   <link rel="canonical" href="https://reeydaang.github.io/Neonix/landing/" />
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
-  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.svg" />
   <link rel="manifest" href="./site.webmanifest" />
   <link rel="stylesheet" href="./styles.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    "name": "Neonix — платформа для комунікації та взаємодії в реальному часі",
+    "alternateName": "Neonix — platform for real-time communication and collaborative interaction",
+    "author": {"@type": "Person","name": "Maksym Pylypushko"},
+    "inLanguage": "uk",
+    "genre": "Bachelor thesis landing page",
+    "url": "https://reeydaang.github.io/Neonix/landing/",
+    "description": "Односторінковий сайт для представлення бакалаврської роботи про платформу Neonix."
+  }
+  </script>
 </head>
 <body>
-  <header class="site-header">
-    <div class="container">
-      <a class="brand" href="#home" aria-label="Neonix home">Neonix</a>
+  <a class="skip-link" href="#main-content">Перейти до основного вмісту</a>
+
+  <header class="site-header" role="banner">
+    <div class="container header-layout">
+      <a class="brand" href="#home" aria-label="Повернутися на початок сторінки Neonix">
+        <img src="./assets/logo-mark.svg" alt="" aria-hidden="true" width="28" height="28" />
+        <span>Neonix</span>
+      </a>
       <nav class="site-nav" aria-label="Основна навігація">
         <ul>
           <li><a href="#about">Про роботу</a></li>
+          <li><a href="#advantages">Переваги</a></li>
           <li><a href="#goals">Мета</a></li>
           <li><a href="#contacts">Контакти</a></li>
         </ul>
@@ -45,50 +59,93 @@
     </div>
   </header>
 
-  <main id="home">
-    <section class="hero">
+  <main id="main-content" tabindex="-1">
+    <section class="hero" id="home" aria-labelledby="hero-title">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Бакалаврська робота</p>
+          <h1 id="hero-title">Neonix — платформа для комунікації та взаємодії в реальному часі</h1>
+          <p class="lead">
+            На другому етапі додано семантичну розмітку, accessibility-покращення, розширені SEO-метадані,
+            Open Graph, Twitter Card та Schema.org розмітку.
+          </p>
+          <div class="hero-actions" aria-label="Основні дії">
+            <a class="button button-primary" href="#about">Детальніше</a>
+            <a class="button button-secondary" href="https://github.com/ReEyDaAng/Neonix">Репозиторій</a>
+          </div>
+        </div>
+
+        <figure class="hero-visual">
+          <img src="./assets/preview-cover.svg" alt="Графічне представлення платформи Neonix із блоками чату, каналів та аналітики" width="640" height="420" />
+          <figcaption>Ілюстративний макет для презентації дипломного проєкту</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="about" class="section" aria-labelledby="about-title">
+      <div class="container card-grid">
+        <article class="card">
+          <h2 id="about-title">Що реалізовано на цьому етапі</h2>
+          <p>Сторінка отримала зрозумілу заголовкову структуру, семантичні секції, альтернативні тексти для зображень, фокус-стани для клавіатурної навігації та додаткові SEO-метадані.</p>
+        </article>
+
+        <aside class="card" aria-labelledby="seo-title">
+          <h2 id="seo-title">SEO і discoverability</h2>
+          <ul class="feature-list">
+            <li>meta description і keywords</li>
+            <li>Open Graph теги</li>
+            <li>Twitter Card теги</li>
+            <li>canonical URL</li>
+            <li>Schema.org JSON-LD</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section id="advantages" class="section" aria-labelledby="advantages-title">
       <div class="container">
-        <p class="eyebrow">Бакалаврська робота</p>
-        <h1>Neonix — платформа для комунікації та взаємодії в реальному часі</h1>
-        <p class="lead">
-          Базова структура лендінгу для презентації дипломного проєкту. На наступних етапах
-          буде додано повний контент, accessibility-доопрацювання та адаптивну стилізацію.
-        </p>
-        <div class="hero-actions">
-          <a class="button button-primary" href="#about">Перейти до опису</a>
-          <a class="button button-secondary" href="https://github.com/ReEyDaAng/Neonix">Репозиторій</a>
+        <h2 id="advantages-title">Покращення доступності</h2>
+        <div class="card-grid">
+          <article class="card">
+            <h3>Семантична структура</h3>
+            <p>Використано теги <code>header</code>, <code>nav</code>, <code>main</code>, <code>section</code>, <code>article</code>, <code>aside</code> і <code>footer</code>.</p>
+          </article>
+          <article class="card">
+            <h3>Навігація з клавіатури</h3>
+            <p>Додано skip-link та видимі focus-стани для елементів керування.</p>
+          </article>
+          <article class="card">
+            <h3>Альтернативні описи</h3>
+            <p>Усі інформативні зображення мають альтернативний текст, а декоративні — позначені як приховані.</p>
+          </article>
         </div>
       </div>
     </section>
 
-    <section id="about" class="section">
-      <div class="container">
-        <h2>Базова структура сторінки</h2>
-        <p>
-          На першому етапі реалізовано HTML-основу сторінки, стартову SEO-конфігурацію,
-          robots.txt, sitemap.xml, favicon та підключення базових стилів.
-        </p>
-      </div>
-    </section>
-
-    <section id="goals" class="section">
-      <div class="container">
-        <h2>Що буде додано далі</h2>
-        <ul class="check-list">
-          <li>Секції з описом теми, метою та завданнями</li>
-          <li>Структура контенту для бакалаврської роботи</li>
-          <li>Покращення доступності та семантики</li>
-          <li>Повна адаптивна стилізація</li>
-        </ul>
+    <section id="goals" class="section" aria-labelledby="goals-title">
+      <div class="container card">
+        <h2 id="goals-title">Що буде додано на наступному етапі</h2>
+        <ol class="number-list">
+          <li>Повне контентне наповнення під тему бакалаврської роботи</li>
+          <li>Актуальність теми, мета дослідження та основні завдання</li>
+          <li>Очікувані результати та посилання на супровідні матеріали</li>
+          <li>Контактна інформація та академічний контекст</li>
+        </ol>
       </div>
     </section>
   </main>
 
-  <footer id="contacts" class="site-footer">
-    <div class="container">
-      <p><strong>Автор:</strong> Maksym Pylypushko</p>
-      <p><strong>GitHub:</strong> <a href="https://github.com/ReEyDaAng/Neonix">github.com/ReEyDaAng/Neonix</a></p>
-      <p><strong>Email:</strong> m.pilipushko@gmail.com</p>
+  <footer id="contacts" class="site-footer" role="contentinfo">
+    <div class="container footer-layout">
+      <div>
+        <h2 class="footer-title">Контакти</h2>
+        <p><strong>Автор:</strong> Maksym Pylypushko</p>
+        <p><strong>GitHub:</strong> <a href="https://github.com/ReEyDaAng/Neonix">github.com/ReEyDaAng/Neonix</a></p>
+      </div>
+      <div>
+        <p><strong>Статус етапу:</strong> Accessibility & SEO</p>
+        <p><strong>Наступний крок:</strong> Контентне наповнення</p>
+      </div>
     </div>
   </footer>
 </body>
