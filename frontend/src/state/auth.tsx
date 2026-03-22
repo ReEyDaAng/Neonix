@@ -1,12 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export type User = { id: string; email: string; displayName: string; username: string };
 
 type AuthCtx = {
   token: string | null;
   user: User | null;
+  /** важливо: буде true після того, як ми зчитаємо localStorage */
+  ready: boolean;
   setSession: (token: string, user: User) => void;
   signOut: () => void;
 };
@@ -14,27 +16,50 @@ type AuthCtx = {
 const Ctx = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => (typeof window !== "undefined" ? localStorage.getItem("nx_token") : null));
-  const [user, setUser] = useState<User | null>(() => {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("nx_user") : null;
-    return raw ? JSON.parse(raw) : null;
-  });
+  // ВАЖЛИВО: перший рендер і на сервері, і на клієнті буде однаковий (null)
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [ready, setReady] = useState(false);
 
-  const value = useMemo<AuthCtx>(() => ({
-    token, user,
-    setSession: (t, u) => {
+  // ТІЛЬКИ після mount у браузері читаємо localStorage
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem("nx_token");
+      const raw = localStorage.getItem("nx_user");
       setToken(t);
-      setUser(u);
-      localStorage.setItem("nx_token", t);
-      localStorage.setItem("nx_user", JSON.stringify(u));
-    },
-    signOut: () => {
+      setUser(raw ? JSON.parse(raw) : null);
+    } catch {
       setToken(null);
       setUser(null);
-      localStorage.removeItem("nx_token");
-      localStorage.removeItem("nx_user");
+    } finally {
+      setReady(true);
     }
-  }), [token, user]);
+  }, []);
+
+  const value = useMemo<AuthCtx>(
+    () => ({
+      token,
+      user,
+      ready,
+      setSession: (t, u) => {
+        setToken(t);
+        setUser(u);
+        try {
+          localStorage.setItem("nx_token", t);
+          localStorage.setItem("nx_user", JSON.stringify(u));
+        } catch {}
+      },
+      signOut: () => {
+        setToken(null);
+        setUser(null);
+        try {
+          localStorage.removeItem("nx_token");
+          localStorage.removeItem("nx_user");
+        } catch {}
+      },
+    }),
+    [token, user, ready]
+  );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

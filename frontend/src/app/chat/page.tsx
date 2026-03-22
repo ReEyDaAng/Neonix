@@ -20,7 +20,7 @@ type Message = {
 const WS_URL =
   process.env.NEXT_PUBLIC_WS_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:4000";
+  "https://api.neonix.app";
 
 export default function ChatPage() {
   const { user } = useAuth();
@@ -33,7 +33,6 @@ export default function ChatPage() {
 
   // Старий UX-стан: спочатку “Home”, чат відкривається після кліку по каналу
   const [channelsHidden, setChannelsHidden] = useState(false);
-  const [channelEverClicked, setChannelEverClicked] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -54,10 +53,10 @@ export default function ChatPage() {
   );
 
   const viewState = useMemo<"home" | "server" | "channel">(() => {
-    if (!channelEverClicked) return "home";
-    if (channelsHidden) return "server";
+    if (!roomId) return "home";
+    if (!channelId) return "server";
     return "channel";
-  }, [channelEverClicked, channelsHidden]);
+  }, [roomId, channelId]);
 
   const room = useMemo(() => rooms.find((r) => r.id === roomId), [rooms, roomId]);
 
@@ -107,10 +106,17 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
+  // якщо змінився сервер — скидаємо канал і повертаємось у server view
+  useEffect(() => {
+    setChannelId("");
+    setChannelsHidden(false);
+    // (не обов'язково) можна також чистити typing/unread під канали:
+    setTypingUsers([]);
+  }, [roomId]);
+  
   // ---------- DATA: messages ----------
   useEffect(() => {
     if (!roomId || !channelId) return;
-    if (!channelEverClicked || channelsHidden) return; // не вантажимо чат, доки користувач не “відкрив” канал
 
     let alive = true;
 
@@ -127,11 +133,11 @@ export default function ChatPage() {
     return () => {
       alive = false;
     };
-  }, [roomId, channelId, channelEverClicked, channelsHidden]);
+  }, [roomId, channelId, channelsHidden]);
 
   // ---------- WS connect once ----------
   useEffect(() => {
-    const s = io(WS_URL, { transports: ["websocket"] });
+    const s = io(WS_URL, { transports: ["websocket", "polling"], withCredentials: true, });
     socketRef.current = s;
 
     s.on("connect", () => {
@@ -149,7 +155,6 @@ export default function ChatPage() {
       const isCurrent =
         msg.roomId === roomId &&
         msg.channelId === channelId &&
-        channelEverClicked &&
         !channelsHidden;
 
       if (!isCurrent) {
@@ -194,12 +199,12 @@ export default function ChatPage() {
     // Коли чат відкритий (channel view) — підписуємось на конкретний канал.
     // Інакше — тільки на room (для unread/roomMessage).
     const joinPayload =
-      channelEverClicked && !channelsHidden && channelId
+      !channelsHidden && channelId
         ? { roomId, channelId }
         : { roomId };
 
     s.emit("join", joinPayload);
-  }, [roomId, channelId, channelEverClicked, channelsHidden]);
+  }, [roomId, channelId, channelsHidden]);
 
   // ---------- scroll ----------
   useEffect(() => {
@@ -211,13 +216,11 @@ export default function ChatPage() {
   function selectRoom(id: string) {
     setRoomId(id);
     setChannelsHidden(false);
-    setChannelEverClicked(false);
     setChannelId("");
     setTypingUsers([]);
   }
 
   function openChannel(id: string) {
-    setChannelEverClicked(true);
     setChannelsHidden(false);
     setChannelId(id);
     setTypingUsers([]);
@@ -227,7 +230,7 @@ export default function ChatPage() {
   function send() {
     const text = draft.trim();
     if (!text || !roomId || !channelId) return;
-    if (!channelEverClicked || channelsHidden) return;
+    if (channelsHidden) return;
 
     const payload = {
       roomId,
@@ -263,7 +266,7 @@ export default function ChatPage() {
     const s = socketRef.current;
     if (!s?.connected) return;
     if (!roomId || !channelId) return;
-    if (!channelEverClicked || channelsHidden) return;
+    if (channelsHidden) return;
 
     // typing true
     s.emit("typing", { roomId, channelId, who: meName, typing: true });
