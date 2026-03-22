@@ -4,6 +4,9 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatModule } from './modules/chat/chat.module';
 
+/**
+ *
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({

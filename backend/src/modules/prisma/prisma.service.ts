@@ -4,6 +4,9 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
+/**
+ *
+ */
 @Injectable()
 export class PrismaService
   extends PrismaClient
@@ -11,6 +14,9 @@ export class PrismaService
 {
   private readonly pool: Pool;
 
+  /**
+   *
+   */
   constructor() {
     /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
     const connectionString = process.env.DATABASE_URL;
@@ -33,12 +39,18 @@ export class PrismaService
     /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
   }
 
+  /**
+   *
+   */
   async onModuleInit() {
     /* eslint-disable @typescript-eslint/no-unsafe-call */
     await (this.$connect as any)();
     /* eslint-enable @typescript-eslint/no-unsafe-call */
   }
 
+  /**
+   *
+   */
   async onModuleDestroy() {
     /* eslint-disable @typescript-eslint/no-unsafe-call */
     await (this.$disconnect as any)();
