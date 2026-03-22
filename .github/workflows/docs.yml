@@ -1,0 +1,40 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint backend and frontend
+        run: |
+          cd backend && npm run lint
+          cd ../frontend && npm run lint
+
+      - name: Generate backend docs
+        working-directory: backend
+        run: npm run docs:generate
+
+      - name: Generate frontend docs
+        working-directory: frontend
+        run: npm run docs:generate

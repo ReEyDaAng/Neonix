@@ -1,0 +1,102 @@
+openapi: 3.0.3
+info:
+  title: Neonix API
+  description: API documentation for Neonix platform
+  version: 1.0.0
+paths:
+  /auth/register:
+    post:
+      summary: Register a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: user@example.com
+                password:
+                  type: string
+                  example: StrongPass123
+                displayName:
+                  type: string
+                  example: NeonixUser
+      responses:
+        '201':
+          description: User registered
+  /auth/login:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: user@example.com
+                password:
+                  type: string
+        responses:
+          '200':
+            description: Login successful
+  /rooms:
+    get:
+      summary: List rooms
+      responses:
+        '200':
+          description: Rooms list
+  /rooms/{roomId}/channels:
+    get:
+      summary: List channels for room
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Channels list
+  /rooms/{roomId}/channels/{channelId}/messages:
+    get:
+      summary: List messages
+      parameters:
+        - in: path
+          name: roomId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Messages list
+    post:
+      summary: Send message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                who:
+                  type: string
+                  example: Roma
+                text:
+                  type: string
+                  example: Hello
+                time:
+                  type: string
+                  example: '13:01'
+      responses:
+        '201':
+          description: Message created

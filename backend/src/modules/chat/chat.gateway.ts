@@ -19,6 +19,15 @@ type SendPayload = {
   time?: string;
 };
 
+/**
+ * Socket.IO gateway for real-time chat events.
+ *
+ * Connection flow:
+ * - `connection` event opens socket.
+ * - `join` subscribes a client to room/channel rooms.
+ * - `typing` broadcasts typing status.
+ * - `message` saves and broadcasts messages to room/channel.
+ */
 @WebSocketGateway({
   cors: {
     origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
@@ -29,16 +38,32 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
+  /**
+   *
+   * @param chat
+   */
   constructor(private readonly chat: ChatService) {}
 
+  /**
+   * Triggered when a websocket client connects.
+   */
   handleConnection() {
     // connection established
   }
 
+  /**
+   * Triggered when a websocket client disconnects.
+   */
   handleDisconnect() {
     // connection closed
   }
 
+  /**
+   * Request to join a room and optional channel group.
+   * @param client - connected socket client
+   * @param body - { roomId, channelId? }
+   * @returns acknowledgment object
+   */
   @SubscribeMessage('join')
   onJoin(@ConnectedSocket() client: Socket, @MessageBody() body: JoinPayload) {
     const { roomId, channelId } = body || ({} as any);
@@ -56,6 +81,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { ok: true };
   }
 
+  /**
+   * Broadcast typing state to channel peers.
+   * @param client
+   * @param body
+   * @param body.roomId
+   * @param body.channelId
+   * @param body.who
+   * @param body.typing
+   */
   @SubscribeMessage('typing')
   onTyping(
     @ConnectedSocket() client: Socket,
@@ -73,6 +107,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     )('typing', { who, typing });
   }
 
+  /**
+   * Handle incoming chat message, persist it, and broadcast updates.
+   *
+   * @param client - current socket connection
+   * @param body - message payload payload
+   * @returns acknowledgment with saved message
+   */
   @SubscribeMessage('message')
   async onMessage(
     @ConnectedSocket() client: Socket,

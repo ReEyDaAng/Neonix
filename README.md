@@ -77,7 +77,21 @@ MIT License
 
 ---
 
-## 🎓 Author
+## 📝 Documentation
+
+- Swagger API docs: `http://localhost:4000/api/docs`
+- TypeDoc output:
+  - Backend: `backend/docs/reference`
+  - Frontend: `frontend/docs/reference`
+- Documentation standards: use `@nestjs/swagger` decorators in controllers, `@ApiProperty()` in DTOs, and TSDoc comments for services/gateways.
+- Additional docs: `docs/generate_docs.md`, `docs/architecture.md`, `docs/business_logic.md`, `docs/test_driven_documentation.md`, `docs/api/openapi.yaml`
+
+## �🇦🇬🇧 Documentation Languages
+Documentation is available in:
+- 🇺🇦 Ukrainian: `/docs/ua`
+- 🇬🇧 English: `/docs/en`
+
+## �🎓 Author
 
 Maksym Pylypushko  
 Bachelor Thesis Project (SumDU)

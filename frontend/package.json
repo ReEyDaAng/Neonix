@@ -8,7 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck"
+    "docs:generate": "typedoc",
+    "docs:lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "docs:all": "npm run docs:lint && npm run docs:generate",
+    "check": "npm run lint && npm run typecheck",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "next": "16.0.10",
@@ -17,13 +22,27 @@
     "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
+    "@chromatic-com/storybook": "^5.0.2",
+    "@storybook/addon-a11y": "^10.3.1",
+    "@storybook/addon-docs": "^10.3.1",
+    "@storybook/addon-vitest": "^10.3.1",
+    "@storybook/nextjs-vite": "^10.3.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/browser-playwright": "^4.1.0",
+    "@vitest/coverage-v8": "^4.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-storybook": "^10.3.1",
+    "playwright": "^1.58.2",
+    "storybook": "^10.3.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typedoc": "^0.28.17",
+    "typescript": "^5",
+    "vite": "^8.0.1",
+    "vitest": "^4.1.0"
   }
 }

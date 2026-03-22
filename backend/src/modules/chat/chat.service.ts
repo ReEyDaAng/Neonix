@@ -1,11 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../modules/prisma/prisma.service';
 
+/**
+ * Service that manages room, channel, and message data through Prisma.
+ *
+ * Ensures initial seed data exists and provides CRUD listing/send operations.
+ */
 @Injectable()
 export class ChatService {
+  /**
+   *
+   * @param prisma
+   */
   constructor(private readonly prisma: PrismaService) {}
 
-  // Запуститься автоматично при першому зверненні, якщо таблиці порожні
+  /**
+   * Seed default rooms, channels, and sample message when database empty.
+   *
+   * @remarks
+   * This method is idempotent and is invoked by public list endpoints.
+   */
   async ensureSeed() {
     const roomsCount = await this.prisma.room.count();
     if (roomsCount > 0) return;
@@ -50,11 +64,22 @@ export class ChatService {
     });
   }
 
+  /**
+   * List all rooms in creation order.
+   *
+   * @returns rooms array
+   */
   async listRooms() {
     await this.ensureSeed();
     return this.prisma.room.findMany({ orderBy: { createdAt: 'asc' } });
   }
 
+  /**
+   * List channels for a specified room.
+   *
+   * @param roomId - room identifier
+   * @returns channels array
+   */
   async listChannels(roomId: string) {
     await this.ensureSeed();
     return this.prisma.channel.findMany({
@@ -63,6 +88,13 @@ export class ChatService {
     });
   }
 
+  /**
+   * List messages in a channel with room/channel scope.
+   *
+   * @param roomId - room identifier
+   * @param channelId - channel identifier
+   * @returns messages array
+   */
   async listMessages(roomId: string, channelId: string) {
     await this.ensureSeed();
     return this.prisma.message.findMany({
@@ -71,6 +103,16 @@ export class ChatService {
     });
   }
 
+  /**
+   * Append a new message in a channel.
+   *
+   * @param roomId - room identifier
+   * @param channelId - channel identifier
+   * @param who - sender display name
+   * @param text - message body
+   * @param time - message time label
+   * @returns created message record
+   */
   async sendMessage(
     roomId: string,
     channelId: string,
