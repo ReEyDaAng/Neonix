@@ -26,7 +26,7 @@ export default function SettingsPage() {
                   id="settings-theme"
                   className="input"
                   value={theme}
-                  onChange={(e) => setTheme(e.target.value as any)}
+                  onChange={(e) => setTheme(e.target.value as Theme)}
                 >
                   <option value="dark">Dark</option>
                   <option value="midnight">Midnight</option>
@@ -40,9 +40,9 @@ export default function SettingsPage() {
                   id="settings-lang"
                   className="input"
                   value={lang}
-                  onChange={(e) => setLang(e.target.value as any)}
+                  onChange={(e) => setLang(e.target.value as Lang)}
                 >
-                  <option value="ua">UA</option>
+                  <option value="uk">UA</option>
                   <option value="en">EN</option>
                 </select>
               </div>
@@ -55,7 +55,7 @@ export default function SettingsPage() {
                   id="settings-accent"
                   className="input"
                   value={accent}
-                  onChange={(e) => setAccent(e.target.value as any)}
+                  onChange={(e) => setAccent(e.target.value as Accent)}
                 >
                   <option value="cyan">Cyan</option>
                   <option value="violet">Violet</option>

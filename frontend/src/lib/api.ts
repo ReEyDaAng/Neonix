@@ -8,7 +8,33 @@ if (!API_URL) {
   // у проді краще “впасти”, ніж мовчки піти в localhost
   throw new Error("NEXT_PUBLIC_API_URL is missing (required in production)");
 }
+interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  username: string;
+}
 
+interface Room {
+  id: string;
+  name: string;
+  meta?: string;
+  badge?: string;
+}
+
+interface Channel {
+  id: string;
+  name: string;
+}
+
+interface Message {
+  id: string;
+  who: string;
+  text: string;
+  time: string;
+  me: boolean;
+  createdAt: string;
+}
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(API_URL + path, {
     ...init,
@@ -21,23 +47,23 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   auth: {
     login: (body: { email: string; password: string }) =>
-      http<{ token: string; user: any }>("/auth/login", {
+      http<{ token: string; user: User }>("/auth/login", {
         method: "POST",
         body: JSON.stringify(body),
       }),
     register: (body: { email: string; password: string; displayName?: string }) =>
-      http<{ token: string; user: any }>("/auth/register", {
+      http<{ token: string; user: User }>("/auth/register", {
         method: "POST",
         body: JSON.stringify(body),
       }),
   },
   chat: {
-    rooms: () => http<any[]>("/rooms"),
-    channels: (roomId: string) => http<any[]>(`/rooms/${roomId}/channels`),
+    rooms: () => http<Room[]>("/rooms"),
+    channels: (roomId: string) => http<Channel[]>(`/rooms/${roomId}/channels`),
     messages: (roomId: string, channelId: string) =>
-      http<any[]>(`/rooms/${roomId}/channels/${channelId}/messages`),
+      http<Message[]>(`/rooms/${roomId}/channels/${channelId}/messages`),
     send: (roomId: string, channelId: string, body: { who: string; text: string; time: string }) =>
-      http<any>(`/rooms/${roomId}/channels/${channelId}/messages`, {
+      http<Message>(`/rooms/${roomId}/channels/${channelId}/messages`, {
         method: "POST",
         body: JSON.stringify(body),
       }),

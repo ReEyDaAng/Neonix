@@ -10,6 +10,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -33,7 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       className="appRoot"
       data-theme={theme}
       data-accent={accent}
-      style={{ ["--glow" as any]: (glow / 100).toFixed(2) }}
+      style={{ ["--glow"]: (glow / 100).toFixed(2) }}
     >
       <Topbar />
       <main className="container">

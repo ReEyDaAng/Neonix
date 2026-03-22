@@ -244,7 +244,7 @@ export default function ChatPage() {
     if (s?.connected) {
       s.emit("message", payload, () => {});
     } else {
-      api.chat.send(roomId, channelId, payload as any).catch(() => {});
+      api.chat.send(roomId, channelId, payload).catch(() => {});
     }
 
     // зупиняємо typing

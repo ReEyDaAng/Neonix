@@ -128,6 +128,6 @@ const dict = {
 export function useI18n() {
   const { lang } = useUiPrefs();
   const resolved = lang === "auto" ? "en" : lang;
-  const d = (dict as any)[resolved] || dict.en;
+  const d = (dict as Record<string, Record<string, string>>)[resolved] || dict.en;
   return (key: keyof typeof dict.en) => d[key] ?? dict.en[key] ?? String(key);
 }

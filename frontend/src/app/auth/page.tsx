@@ -31,8 +31,9 @@ export default function AuthPage() {
           : await api.auth.register({ email, password: pass, displayName });
       setSession(res.token, res.user);
       router.push("/profile");
-    } catch (e: any) {
-      alert(e?.message || "Auth failed");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Auth failed";
+      alert(message);
     } finally {
       setLoading(false);
     }

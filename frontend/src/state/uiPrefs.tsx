@@ -21,40 +21,44 @@ type UiPrefsCtx = {
 
 const Ctx = createContext<UiPrefsCtx | null>(null);
 
-function isTheme(v: any): v is Theme {
+function isTheme(v: unknown): v is Theme {
   return v === "dark" || v === "midnight" || v === "light";
 }
-function isAccent(v: any): v is Accent {
+function isAccent(v: unknown): v is Accent {
   return v === "cyan" || v === "violet" || v === "lime";
 }
-function isLang(v: any): v is Lang {
+function isLang(v: unknown): v is Lang {
   return v === "auto" || v === "uk" || v === "en";
 }
 
 export function UiPrefsProvider({ children }: { children: React.ReactNode }) {
   // ✅ ВАЖЛИВО: однакові дефолти на сервері і на першому клієнтському рендері
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [accent, setAccent] = useState<Accent>("cyan");
-  const [glow, setGlow] = useState<number>(45);
-  const [lang, setLang] = useState<Lang>("auto");
-
-  // ✅ Читаємо localStorage ТІЛЬКИ після mount
-  useEffect(() => {
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return "dark";
     const t = localStorage.getItem("nx_theme");
+    return isTheme(t) ? t : "dark";
+  });
+  const [accent, setAccent] = useState<Accent>(() => {
+    if (typeof window === 'undefined') return "cyan";
     const a = localStorage.getItem("nx_accent");
+    return isAccent(a) ? a : "cyan";
+  });
+  const [glow, setGlow] = useState<number>(() => {
+    if (typeof window === 'undefined') return 45;
     const g = localStorage.getItem("nx_glow");
+    return g != null && !Number.isNaN(Number(g)) ? Number(g) : 45;
+  });
+  const [lang, setLang] = useState<Lang>(() => {
+    if (typeof window === 'undefined') return "auto";
     const l = localStorage.getItem("nx_lang");
-
-    if (isTheme(t)) setTheme(t);
-    if (isAccent(a)) setAccent(a);
-    if (g != null && !Number.isNaN(Number(g))) setGlow(Number(g));
-    if (isLang(l)) setLang(l);
-  }, []);
+    return isLang(l) ? l : "auto";
+  });
 
   // ✅ auto language по браузеру — теж після mount
   useEffect(() => {
     if (lang !== "auto") return;
     const l = (navigator.language || "en").toLowerCase();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (l.startsWith("uk") || l.startsWith("ru")) setLang("uk");
     else setLang("en");
   }, [lang]);

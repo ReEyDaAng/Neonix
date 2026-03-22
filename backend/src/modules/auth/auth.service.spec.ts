@@ -1,4 +1,4 @@
-describe("AuthService (unit)", () => {
+describe('AuthService (unit)', () => {
   let AuthService: any;
   let BadRequestException: any;
   let UnauthorizedException: any;
@@ -16,37 +16,44 @@ describe("AuthService (unit)", () => {
     prisma.user.create.mockReset();
 
     // ✅ важливо: require після resetModules
-    ({ BadRequestException, UnauthorizedException } = require("@nestjs/common"));
-    ({ AuthService } = require("./auth.service"));
+    ({
+      BadRequestException,
+      UnauthorizedException,
+    } = require('@nestjs/common'));
+    ({ AuthService } = require('./auth.service'));
   });
 
-  test("register: throws if email already registered", async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: "u1" });
+  test('register: throws if email already registered', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'u1' });
 
     const svc = new AuthService(prisma as any);
 
-    await expect(svc.register("a@b.com", "123")).rejects.toBeInstanceOf(BadRequestException);
-    await expect(svc.register("a@b.com", "123")).rejects.toMatchObject({
-      message: "Email already registered",
+    await expect(svc.register('a@b.com', '123')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    await expect(svc.register('a@b.com', '123')).rejects.toMatchObject({
+      message: 'Email already registered',
     });
   });
 
-  test("login: throws on invalid credentials", async () => {
+  test('login: throws on invalid credentials', async () => {
     const svc = new AuthService(prisma as any);
 
     prisma.user.findUnique.mockResolvedValue(null);
-    await expect(svc.login("a@b.com", "123")).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(svc.login('a@b.com', '123')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
 
     prisma.user.findUnique.mockResolvedValue({
-      id: "u1",
-      email: "a@b.com",
-      password: "wrong",
-      displayName: "A",
-      username: "@a",
+      id: 'u1',
+      email: 'a@b.com',
+      password: 'wrong',
+      displayName: 'A',
+      username: '@a',
     });
 
-    await expect(svc.login("a@b.com", "123")).rejects.toMatchObject({
-      message: "Invalid credentials",
+    await expect(svc.login('a@b.com', '123')).rejects.toMatchObject({
+      message: 'Invalid credentials',
     });
   });
 });
