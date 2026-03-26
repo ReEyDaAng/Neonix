@@ -4,20 +4,21 @@ import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto';
 
 /**
- *
+ * Controller handling authentication endpoints for user registration, login, and profile retrieval.
  */
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   /**
-   *
-   * @param auth
+   * Constructor for AuthController.
+   * @param auth Auth service instance
    */
   constructor(private readonly auth: AuthService) {}
 
   /**
-   *
-   * @param dto
+   * Registers a new user account.
+   * @param dto User registration data
+   * @returns Authentication response with token and user info
    */
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
@@ -29,8 +30,9 @@ export class AuthController {
   }
 
   /**
-   *
-   * @param dto
+   * Authenticates a user with email and password.
+   * @param dto User login credentials
+   * @returns Authentication response with token and user info
    */
   @Post('login')
   @ApiOperation({ summary: 'Login a user' })
@@ -42,8 +44,9 @@ export class AuthController {
   }
 
   /**
-   *
-   * @param authHeader
+   * Retrieves current user profile from JWT token.
+   * @param authHeader Authorization header containing Bearer token
+   * @returns User profile information
    */
   @Get('me')
   @ApiOperation({ summary: 'Get current user from JWT token' })

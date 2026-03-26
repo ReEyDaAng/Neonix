@@ -3,19 +3,20 @@ import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
 
 /**
- *
+ * Controller handling chat-related endpoints for rooms, channels, and messages.
  */
 @ApiTags('Chat')
 @Controller()
 export class ChatController {
   /**
-   *
-   * @param chat
+   * Constructor for ChatController.
+   * @param chat Chat service instance
    */
   constructor(private readonly chat: ChatService) {}
 
   /**
-   *
+   * Retrieves list of all chat rooms.
+   * @returns Array of room objects
    */
   @Get('rooms')
   @ApiOperation({ summary: 'Get list of rooms' })
@@ -25,8 +26,9 @@ export class ChatController {
   }
 
   /**
-   *
-   * @param roomId
+   * Retrieves list of channels in a specific room.
+   * @param roomId Room identifier
+   * @returns Array of channel objects
    */
   @Get('rooms/:roomId/channels')
   @ApiOperation({ summary: 'Get list of channels in a room' })
@@ -36,9 +38,10 @@ export class ChatController {
   }
 
   /**
-   *
-   * @param roomId
-   * @param channelId
+   * Retrieves messages in a specific channel.
+   * @param roomId Room identifier
+   * @param channelId Channel identifier
+   * @returns Array of message objects
    */
   @Get('rooms/:roomId/channels/:channelId/messages')
   @ApiOperation({ summary: 'Get messages in a channel' })
@@ -51,13 +54,14 @@ export class ChatController {
   }
 
   /**
-   *
-   * @param roomId
-   * @param channelId
-   * @param body
-   * @param body.who
-   * @param body.text
-   * @param body.time
+   * Sends a new message to a channel.
+   * @param roomId Room identifier
+   * @param channelId Channel identifier
+   * @param body Message payload object
+   * @param body.who Sender display name
+   * @param body.text Message text content
+   * @param body.time Message time label
+   * @returns Created message object
    */
   @Post('rooms/:roomId/channels/:channelId/messages')
   @ApiOperation({ summary: 'Send a message to a channel' })

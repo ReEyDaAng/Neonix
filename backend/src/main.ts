@@ -1,36 +1,46 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { AppModule } from './app.module';
+import { AppLoggerService } from './common/logger/logger.service';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { requestIdMiddleware } from './common/middleware/request-id.middleware';
+import { createRequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
+
+process.on('uncaughtException', (error) => {
+  console.error(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'CRITICAL',
+      context: 'Process',
+      message: 'Uncaught exception',
+      trace: error.stack,
+    }),
+  );
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'CRITICAL',
+      context: 'Process',
+      message: 'Unhandled rejection',
+      reason: String(reason),
+    }),
+  );
+});
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  const config = new DocumentBuilder()
-    .setTitle('Neonix API')
-    .setDescription('API documentation for Neonix platform')
-    .setVersion('1.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        in: 'header',
-      },
-      'JWT',
-    )
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
-
-  const origins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
-    .split(',')
-    .map((v) => v.trim());
-  app.enableCors({
-    origin: origins,
-    credentials: true,
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
   });
+
+  const logger = app.get(AppLoggerService);
+  app.useLogger(logger);
+
+  app.use(requestIdMiddleware);
+  app.use(createRequestLoggingMiddleware(logger));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -40,9 +50,32 @@ async function bootstrap() {
     }),
   );
 
+  app.useGlobalFilters(new AllExceptionsFilter(logger));
+
+  const config = new DocumentBuilder()
+    .setTitle('Neonix API')
+    .setDescription('API documentation for Neonix backend')
+    .setVersion('1.0')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
+  const corsOrigin = process.env.CORS_ORIGIN?.split(',') ?? true;
+  app.enableCors({
+    origin: corsOrigin,
+    credentials: true,
+  });
+
   const port = Number(process.env.PORT || 4000);
+
   await app.listen(port, '0.0.0.0');
 
-  console.log(`API listening on :${port}`);
+  logger.log('Application started successfully', 'Bootstrap', {
+    port,
+    env: process.env.NODE_ENV || 'development',
+    logLevel: process.env.LOG_LEVEL || 'info',
+  });
 }
+
 void bootstrap();

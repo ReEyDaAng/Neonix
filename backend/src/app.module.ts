@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { LoggerModule } from './common/logger/logger.module';
 
 /**
  *
@@ -16,6 +17,7 @@ import { ChatModule } from './modules/chat/chat.module';
     PrismaModule,
     AuthModule,
     ChatModule,
+    LoggerModule,
   ],
 })
 export class AppModule {}

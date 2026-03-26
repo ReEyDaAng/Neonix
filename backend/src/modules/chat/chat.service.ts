@@ -9,8 +9,8 @@ import { PrismaService } from '../../modules/prisma/prisma.service';
 @Injectable()
 export class ChatService {
   /**
-   *
-   * @param prisma
+   * Constructor for ChatService.
+   * @param prisma Prisma service instance
    */
   constructor(private readonly prisma: PrismaService) {}
 
