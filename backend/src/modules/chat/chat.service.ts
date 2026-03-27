@@ -70,8 +70,12 @@ export class ChatService {
    * @returns rooms array
    */
   async listRooms() {
+    const start = performance.now();
     await this.ensureSeed();
-    return this.prisma.room.findMany({ orderBy: { createdAt: 'asc' } });
+    const result = this.prisma.room.findMany({ orderBy: { createdAt: 'asc' } });
+    const duration = performance.now() - start;
+    console.log(`[PERF] listRooms took ${duration.toFixed(2)}ms`);
+    return result;
   }
 
   /**
@@ -81,11 +85,17 @@ export class ChatService {
    * @returns channels array
    */
   async listChannels(roomId: string) {
+    const start = performance.now();
     await this.ensureSeed();
-    return this.prisma.channel.findMany({
+    const result = this.prisma.channel.findMany({
       where: { roomId },
       orderBy: { createdAt: 'asc' },
     });
+    const duration = performance.now() - start;
+    console.log(
+      `[PERF] listChannels(roomId=${roomId}) took ${duration.toFixed(2)}ms`,
+    );
+    return result;
   }
 
   /**
@@ -93,14 +103,31 @@ export class ChatService {
    *
    * @param roomId - room identifier
    * @param channelId - channel identifier
+   * @param limit - optional limit for pagination (default 50)
    * @returns messages array
    */
-  async listMessages(roomId: string, channelId: string) {
+  async listMessages(roomId: string, channelId: string, limit: number = 50) {
+    const start = performance.now();
     await this.ensureSeed();
-    return this.prisma.message.findMany({
+    const result = this.prisma.message.findMany({
       where: { roomId, channelId },
+      select: {
+        id: true,
+        who: true,
+        text: true,
+        time: true,
+        me: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: 'asc' },
+      take: limit,
     });
+    const duration = performance.now() - start;
+    const memUsage = process.memoryUsage();
+    console.log(
+      `[PERF] listMessages(roomId=${roomId}, channelId=${channelId}) took ${duration.toFixed(2)}ms, heapUsed: ${(memUsage.heapUsed / 1024 / 1024).toFixed(2)}MB, rss: ${(memUsage.rss / 1024 / 1024).toFixed(2)}MB`,
+    );
+    return result;
   }
 
   /**
@@ -120,9 +147,13 @@ export class ChatService {
     text: string,
     time: string,
   ) {
+    const start = performance.now();
     await this.ensureSeed();
-    return this.prisma.message.create({
+    const result = this.prisma.message.create({
       data: { roomId, channelId, who, text, time, me: true },
     });
+    const duration = performance.now() - start;
+    console.log(`[PERF] sendMessage took ${duration.toFixed(2)}ms`);
+    return result;
   }
 }

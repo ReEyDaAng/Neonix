@@ -34,7 +34,7 @@ export class PrismaService
     const adapter = new PrismaPg(pool);
 
     /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument */
-    super({ adapter } as any); // ✅ ОЦЕ КЛЮЧ
+    super({ adapter, log: ['query', 'warn', 'error'] } as any); // ✅ ОЦЕ КЛЮЧ
     this.pool = pool;
     /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
   }

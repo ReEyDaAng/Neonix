@@ -56,4 +56,5 @@ model Message {
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([roomId, channelId])
+  @@index([roomId, channelId, createdAt])
 }

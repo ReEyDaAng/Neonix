@@ -6,6 +6,7 @@ import { AppLoggerService } from './common/logger/logger.service';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { requestIdMiddleware } from './common/middleware/request-id.middleware';
 import { createRequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
+import { HttpTimingInterceptor } from './common/interceptors/http-timing.interceptor';
 
 process.on('uncaughtException', (error) => {
   console.error(
@@ -49,6 +50,8 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  app.useGlobalInterceptors(new HttpTimingInterceptor());
 
   app.useGlobalFilters(new AllExceptionsFilter(logger));
 

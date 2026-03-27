@@ -1,27 +1,60 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+
+import React, { useEffect, useMemo, useRef, useState, Profiler, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import { api } from "@/lib/api";
 import { useAuth } from "@/state/auth";
+import type { Room, Channel, Message as ApiMessage } from "@/lib/api";
 
-type Room = { id: string; name: string; meta: string; badge: string };
-type Channel = { id: string; roomId: string; name: string };
-type Message = {
-  id: string;
-  roomId: string;
-  channelId: string;
-  who: string;
-  text: string;
-  time: string;
-  me?: boolean;
-};
+// Locally extend Message to include roomId and channelId for state
+type Message = ApiMessage & { roomId: string; channelId: string };
+
+const MessageItem = React.memo(({ message, isMe }: { message: Message; isMe: boolean }) => (
+  <div className={`msg ${isMe ? "me" : ""}`}>
+    <div className="who">
+      <span className="dot" aria-hidden="true" />
+      <span>{message.who}</span>
+      <span className="time">{message.time}</span>
+    </div>
+    <div className="text">{message.text}</div>
+  </div>
+));
+MessageItem.displayName = "MessageItem";
 
 const WS_URL =
   process.env.NEXT_PUBLIC_WS_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
   "https://api.neonix.app";
 
+/**
+ * React profiler callback for measuring render performance.
+ *
+ * @param id component id
+ * @param phase render phase (mount, update, nested-update)
+ * @param actualDuration actual render duration in ms
+ * @param baseDuration base render duration in ms
+ * @param startTime start time of render
+ * @param commitTime commit time of render
+ */
+function onRenderCallback(
+  id: string,
+  phase: "mount" | "update" | "nested-update",
+  actualDuration: number,
+  baseDuration: number,
+  startTime: number,
+  commitTime: number,
+) {
+  // Log performance metrics for profiling
+  if (phase === "mount" || phase === "update") {
+    console.log(`[React] ${id} ${phase} ${actualDuration.toFixed(2)}ms (base: ${baseDuration.toFixed(2)}ms, start: ${startTime}, commit: ${commitTime})`);
+  }
+}
+
+/**
+ * Main chat page component with real-time messaging and performance profiling.
+ * @returns JSX element for the chat page
+ */
 export default function ChatPage() {
   const { user } = useAuth();
 
@@ -35,7 +68,7 @@ export default function ChatPage() {
   const [channelsHidden, setChannelsHidden] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState<string>("");
 
   // typing
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -124,7 +157,9 @@ export default function ChatPage() {
       .messages(roomId, channelId)
       .then((data) => {
         if (!alive) return;
-        setMessages(data || []);
+        // Додаємо roomId і channelId у кожне повідомлення
+        const withIds = (data || []).map((msg) => ({ ...msg, roomId, channelId }));
+        setMessages(withIds);
         // коли відкрили канал — скидаємо unread
         setUnread((prev) => ({ ...prev, [channelId]: 0 }));
       })
@@ -145,22 +180,23 @@ export default function ChatPage() {
     });
 
     s.on("message", (msg: Message) => {
+      // Додаємо roomId і channelId з контексту, якщо їх немає
+      const msgWithIds = { ...msg, roomId, channelId };
       setMessages((prev) => {
-        // мінімальний анти-дублікат (на випадок повторів)
-        if (prev.some((p) => p.id === msg.id)) return prev;
-        return [...prev, msg];
+        if (prev.some((p) => p.id === msgWithIds.id)) return prev;
+        return [...prev, msgWithIds];
       });
 
       // unread, якщо повідомлення не в активному каналі або чат “закритий”
       const isCurrent =
-        msg.roomId === roomId &&
-        msg.channelId === channelId &&
+        msgWithIds.roomId === roomId &&
+        msgWithIds.channelId === channelId &&
         !channelsHidden;
 
       if (!isCurrent) {
         setUnread((prev) => ({
           ...prev,
-          [msg.channelId]: (prev[msg.channelId] || 0) + 1,
+          [msgWithIds.channelId]: (prev[msgWithIds.channelId] || 0) + 1,
         }));
       }
     });
@@ -227,7 +263,7 @@ export default function ChatPage() {
     setUnread((prev) => ({ ...prev, [id]: 0 }));
   }
 
-  function send() {
+  const send = useCallback(() => {
     const text = draft.trim();
     if (!text || !roomId || !channelId) return;
     if (channelsHidden) return;
@@ -251,16 +287,16 @@ export default function ChatPage() {
     if (s?.connected) s.emit("typing", { roomId, channelId, who: meName, typing: false });
 
     setDraft("");
-  }
+  }, [draft, roomId, channelId, channelsHidden, meName]);
 
-  function onDraftKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  const onDraftKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
       send();
     }
-  }
+  }, [send]);
 
-  function onDraftChange(v: string) {
+  const onDraftChange = useCallback((v: string) => {
     setDraft(v);
 
     const s = socketRef.current;
@@ -276,7 +312,7 @@ export default function ChatPage() {
     typingOffTimer.current = window.setTimeout(() => {
       s.emit("typing", { roomId, channelId, who: meName, typing: false });
     }, 900);
-  }
+  }, [roomId, channelId, channelsHidden, meName]);
 
   const typingLine = useMemo(() => {
     if (viewState !== "channel") return "";
@@ -451,22 +487,17 @@ export default function ChatPage() {
             </div>
           ) : (
             <>
-              <div className="chatArea" ref={scrollerRef} aria-label="Messages">
-                {visibleMessages.length === 0 ? (
-                  <div className="muted">No messages yet. Say hi 👋</div>
-                ) : (
-                  visibleMessages.map((m) => (
-                    <div key={m.id} className={`msg ${m.who === meName ? "me" : ""}`}>
-                      <div className="who">
-                        <span className="dot" aria-hidden="true" />
-                        <span>{m.who}</span>
-                        <span className="time">{m.time}</span>
-                      </div>
-                      <div className="text">{m.text}</div>
-                    </div>
-                  ))
-                )}
-              </div>
+              <Profiler id="chatArea" onRender={onRenderCallback}>
+                <div className="chatArea" ref={scrollerRef} aria-label="Messages">
+                  {visibleMessages.length === 0 ? (
+                    <div className="muted">No messages yet. Say hi 👋</div>
+                  ) : (
+                    visibleMessages.map((m) => (
+                    <MessageItem key={m.id} message={m} isMe={m.who === meName} />
+                    ))
+                  )}
+                </div>
+              </Profiler>
 
               <div className="composer" aria-label="Message composer">
                 <input

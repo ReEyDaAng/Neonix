@@ -15,19 +15,28 @@ interface User {
   username: string;
 }
 
-interface Room {
+/**
+ * Room interface for chat rooms.
+ */
+export interface Room {
   id: string;
   name: string;
   meta?: string;
   badge?: string;
 }
 
-interface Channel {
+/**
+ * Channel interface for chat channels within rooms.
+ */
+export interface Channel {
   id: string;
   name: string;
 }
 
-interface Message {
+/**
+ * Message interface for chat messages.
+ */
+export interface Message {
   id: string;
   who: string;
   text: string;
@@ -46,11 +55,26 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
+    /**
+     * Authenticate user with email and password.
+     * @param body login credentials
+     * @param body.email user email
+     * @param body.password user password
+     * @returns promise with token and user data
+     */
     login: (body: { email: string; password: string }) =>
       http<{ token: string; user: User }>("/auth/login", {
         method: "POST",
         body: JSON.stringify(body),
       }),
+    /**
+     * Register new user account.
+     * @param body registration data
+     * @param body.email user email
+     * @param body.password user password
+     * @param body.displayName optional display name
+     * @returns promise with token and user data
+     */
     register: (body: { email: string; password: string; displayName?: string }) =>
       http<{ token: string; user: User }>("/auth/register", {
         method: "POST",
@@ -58,10 +82,35 @@ export const api = {
       }),
   },
   chat: {
+    /**
+     * Fetch list of all chat rooms.
+     * @returns promise with array of rooms
+     */
     rooms: () => http<Room[]>("/rooms"),
+    /**
+     * Fetch channels for a specific room.
+     * @param roomId room identifier
+     * @returns promise with array of channels
+     */
     channels: (roomId: string) => http<Channel[]>(`/rooms/${roomId}/channels`),
+    /**
+     * Fetch messages for a specific channel in a room.
+     * @param roomId room identifier
+     * @param channelId channel identifier
+     * @returns promise with array of messages
+     */
     messages: (roomId: string, channelId: string) =>
       http<Message[]>(`/rooms/${roomId}/channels/${channelId}/messages`),
+    /**
+     * Send a new message to a channel.
+     * @param roomId room identifier
+     * @param channelId channel identifier
+     * @param body message data
+     * @param body.who sender name
+     * @param body.text message text
+     * @param body.time message timestamp
+     * @returns promise with created message
+     */
     send: (roomId: string, channelId: string, body: { who: string; text: string; time: string }) =>
       http<Message>(`/rooms/${roomId}/channels/${channelId}/messages`, {
         method: "POST",

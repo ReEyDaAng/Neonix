@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
 
@@ -41,6 +41,7 @@ export class ChatController {
    * Retrieves messages in a specific channel.
    * @param roomId Room identifier
    * @param channelId Channel identifier
+   * @param limit Optional limit for pagination (default 50)
    * @returns Array of message objects
    */
   @Get('rooms/:roomId/channels/:channelId/messages')
@@ -49,8 +50,10 @@ export class ChatController {
   messages(
     @Param('roomId') roomId: string,
     @Param('channelId') channelId: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.chat.listMessages(roomId, channelId);
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    return this.chat.listMessages(roomId, channelId, limitNum);
   }
 
   /**
