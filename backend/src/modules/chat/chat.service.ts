@@ -42,11 +42,15 @@ export class ChatService {
 
     await this.prisma.channel.createMany({
       data: [
-        { roomId: room1.id, name: 'general' },
-        { roomId: room1.id, name: 'whiteboard' },
-        { roomId: room1.id, name: 'admin' },
-        { roomId: room2.id, name: 'session' },
-        { roomId: room2.id, name: 'tasks' },
+        { roomId: room1.id, name: 'general', kind: 'TEXT' },
+        { roomId: room1.id, name: 'whiteboard', kind: 'TEXT' },
+        { roomId: room1.id, name: 'voice-lounge', kind: 'VOICE' },
+        { roomId: room1.id, name: 'demo-room', kind: 'VIDEO' },
+        { roomId: room1.id, name: 'admin', kind: 'TEXT' },
+        { roomId: room2.id, name: 'session', kind: 'TEXT' },
+        { roomId: room2.id, name: 'tasks', kind: 'TEXT' },
+        { roomId: room2.id, name: 'lecture-room', kind: 'VIDEO' },
+        { roomId: room2.id, name: 'quiet-voice', kind: 'VOICE' },
       ],
     });
 
@@ -138,6 +142,7 @@ export class ChatService {
    * @param who - sender display name
    * @param text - message body
    * @param time - message time label
+   * @param userId
    * @returns created message record
    */
   async sendMessage(
@@ -146,11 +151,20 @@ export class ChatService {
     who: string,
     text: string,
     time: string,
+    userId?: string | null,
   ) {
     const start = performance.now();
     await this.ensureSeed();
     const result = this.prisma.message.create({
-      data: { roomId, channelId, who, text, time, me: true },
+      data: {
+        roomId,
+        channelId,
+        who,
+        text,
+        time,
+        me: true,
+        userId: userId ?? null,
+      },
     });
     const duration = performance.now() - start;
     console.log(`[PERF] sendMessage took ${duration.toFixed(2)}ms`);

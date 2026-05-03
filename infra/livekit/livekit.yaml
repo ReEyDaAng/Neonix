@@ -1,0 +1,42 @@
+# LiveKit Server config — production VPS deployment
+# Documentation: https://docs.livekit.io/realtime/self-hosting/deployment/
+
+port: 7880
+
+# RTC (media) endpoints
+rtc:
+  # TCP fallback for browsers behind UDP-blocking firewalls
+  tcp_port: 7881
+  # UDP port range used for outbound media. Must be opened on the VPS firewall.
+  port_range_start: 50000
+  port_range_end: 50100
+  # use_external_ip lets LiveKit advertise the public IP of the VPS to clients.
+  # External IP is auto-detected; can be pinned via `node_ip` env if detection fails.
+  use_external_ip: true
+
+# API keys — supplied via env at container start (see docker-compose.prod.yml).
+# Format: { <api_key>: <api_secret> } — the env value below is parsed as YAML at boot.
+keys: {}
+
+# Redis is used by LiveKit for room state when the server is run in cluster mode.
+# We keep it on for parity with future scale-out, on a dedicated DB index so it
+# does not collide with the Socket.IO Redis adapter (DB 0).
+redis:
+  address: redis:6379
+  db: 1
+
+# We do NOT enable LiveKit's embedded TURN — coturn runs as a dedicated service
+# and is reachable over a public hostname.
+turn:
+  enabled: false
+
+# Logging — JSON output is friendlier for the existing AppLogger pipeline.
+logging:
+  json: true
+  level: info
+
+# Webhooks — fire to the backend so we can persist call lifecycle events later.
+# webhook:
+#   urls:
+#     - https://api.neonix.app/calls/webhook
+#   api_key: <api_key>

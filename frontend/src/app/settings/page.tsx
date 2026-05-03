@@ -1,6 +1,6 @@
 "use client";
 
-import { useUiPrefs } from "../../state/uiPrefs";
+import { useUiPrefs, type Theme, type Accent, type Lang } from "../../state/uiPrefs";
 
 export default function SettingsPage() {
   const { theme, accent, glow, lang, setTheme, setAccent, setGlow, setLang, reset } = useUiPrefs();

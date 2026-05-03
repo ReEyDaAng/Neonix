@@ -15,6 +15,39 @@ services:
     image: redis:7
     restart: unless-stopped
 
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    # network_mode: host is required so that LiveKit can advertise UDP ports
+    # in the 50000-50100 range directly to clients (without Docker NAT munging).
+    network_mode: host
+    command: >
+      --config /etc/livekit.yaml
+      --bind 0.0.0.0
+      --keys "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+    env_file: ./.env.backend
+    volumes:
+      - ./infra/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    depends_on:
+      - redis
+
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host
+    env_file: ./.env.backend
+    # turnserver.conf placeholders are substituted at start-up via envsubst.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        apk add --no-cache gettext &&
+        envsubst < /tmp/turnserver.conf.tpl > /etc/coturn/turnserver.conf &&
+        exec turnserver -c /etc/coturn/turnserver.conf -n
+    volumes:
+      - ./infra/coturn/turnserver.conf:/tmp/turnserver.conf.tpl:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+
   backend:
     build:
       context: ./backend
@@ -25,6 +58,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - livekit
     ports:
       - "127.0.0.1:4000:4000"
     command: sh -c "npx prisma migrate deploy && node dist/src/main.js"
@@ -35,6 +69,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+        NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
     restart: unless-stopped
     env_file: ./.env.frontend
     environment:

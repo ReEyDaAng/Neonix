@@ -1,7 +1,23 @@
-import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 /**
  * Controller handling authentication endpoints for user registration, login, and profile retrieval.
@@ -44,10 +60,13 @@ export class AuthController {
   }
 
   /**
-   * Retrieves current user profile from JWT token.
-   * @param authHeader Authorization header containing Bearer token
-   * @returns User profile information
+   * Retrieves current user profile from JWT.
+   *
+   * @param req authenticated request
+   * @returns user profile information
    */
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('me')
   @ApiOperation({ summary: 'Get current user from JWT token' })
   @ApiResponse({
@@ -55,8 +74,11 @@ export class AuthController {
     description: 'User profile retrieved successfully',
   })
   @ApiResponse({ status: 401, description: 'Invalid token' })
-  me(@Headers('authorization') authHeader?: string) {
-    const token = (authHeader || '').replace(/^Bearer\s+/i, '');
-    return this.auth.me(token);
+  me(@Req() req: Request) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+    return this.auth.getPublicUserById(userId);
   }
 }

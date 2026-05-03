@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Gigabyte/.claude/projects/D--SumDU-Diploma-Neonix/**)",
+      "Read(//c/Users/Gigabyte/.claude/projects/**)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(DATABASE_URL=postgresql://x:y@localhost:5432/x DIRECT_URL=postgresql://x:y@localhost:5432/x npx prisma generate)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run:*)",
+      "Bash(NEXT_PUBLIC_API_URL=http://localhost:4000 npm run build)",
+      "Bash(ssh neonix@46.225.164.49 ':*)"
+    ]
+  }
+}

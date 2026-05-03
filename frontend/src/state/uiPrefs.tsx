@@ -2,9 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-type Theme = "dark" | "midnight" | "light";
-type Accent = "cyan" | "violet" | "lime";
-type Lang = "auto" | "uk" | "en";
+export type Theme = "dark" | "midnight" | "light";
+export type Accent = "cyan" | "violet" | "lime";
+export type Lang = "auto" | "uk" | "en";
 
 type UiPrefsCtx = {
   theme: Theme;

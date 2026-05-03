@@ -3,9 +3,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+}
+
+enum ChannelKind {
+  TEXT
+  VOICE
+  VIDEO
 }
 
 model User {
@@ -16,7 +22,8 @@ model User {
   username    String
   createdAt   DateTime @default(now())
 
-  messages Message[]
+  messages    Message[]
+  annotations Annotation[]
 }
 
 model Room {
@@ -31,13 +38,16 @@ model Room {
 }
 
 model Channel {
-  id        String   @id @default(uuid())
+  id        String      @id @default(uuid())
   roomId    String
   name      String
-  createdAt DateTime @default(now())
+  kind      ChannelKind @default(TEXT)
+  createdAt DateTime    @default(now())
 
-  room     Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  messages Message[] // ✅ має бути
+  room         Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  messages     Message[]
+  callSessions CallSession[]
+  annotations  Annotation[]
 }
 
 model Message {
@@ -57,4 +67,30 @@ model Message {
 
   @@index([roomId, channelId])
   @@index([roomId, channelId, createdAt])
+}
+
+model CallSession {
+  id              String    @id @default(uuid())
+  channelId       String
+  livekitRoom     String
+  presenterUserId String?
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+}
+
+model Annotation {
+  id        String   @id @default(uuid())
+  channelId String
+  userId    String?
+  payload   Json
+  createdAt DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([channelId, createdAt])
 }

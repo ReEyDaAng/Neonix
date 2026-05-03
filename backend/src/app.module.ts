@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { CallsModule } from './modules/calls/calls.module';
 import { LoggerModule } from './common/logger/logger.module';
 
 /**
@@ -17,6 +18,7 @@ import { LoggerModule } from './common/logger/logger.module';
     PrismaModule,
     AuthModule,
     ChatModule,
+    CallsModule,
     LoggerModule,
   ],
 })

@@ -1,18 +1,38 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect } from "react";
+import { useAuth } from "../../state/auth";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [user] = useState({
-    displayName: "Maksym",
-    username: "test",
-    email: "test@neonix.app",
-  });
+  const { user, ready, signOut: authSignOut } = useAuth();
+
+  useEffect(() => {
+    if (ready && !user) {
+      router.replace("/auth");
+    }
+  }, [ready, user, router]);
 
   function signOut() {
+    authSignOut();
     router.push("/auth");
+  }
+
+  if (!ready) {
+    return (
+      <section className="page" aria-label="Profile">
+        <div className="card">
+          <div className="bd">
+            <p className="muted">Loading…</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
@@ -107,7 +127,7 @@ export default function ProfilePage() {
               </div>
               <div className="item">
                 <b>Start screen sharing</b>
-                <div className="meta">Share a window or full screen (planned).</div>
+                <div className="meta">Share a window or full screen.</div>
               </div>
               <div className="item">
                 <b>Enable annotations</b>

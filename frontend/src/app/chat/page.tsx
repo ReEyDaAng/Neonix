@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState, Profiler, useCallback } fr
 import { io, Socket } from "socket.io-client";
 import { api } from "@/lib/api";
 import { useAuth } from "@/state/auth";
+import { useCalls } from "@/state/calls";
 import type { Room, Channel, Message as ApiMessage } from "@/lib/api";
 
 // Locally extend Message to include roomId and channelId for state
@@ -56,7 +57,8 @@ function onRenderCallback(
  * @returns JSX element for the chat page
  */
 export default function ChatPage() {
-  const { user } = useAuth();
+  const { user, token, ready } = useAuth();
+  const { activeCall, startCall, endCall } = useCalls();
 
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomId, setRoomId] = useState<string>("");
@@ -170,9 +172,15 @@ export default function ChatPage() {
     };
   }, [roomId, channelId, channelsHidden]);
 
-  // ---------- WS connect once ----------
+  // ---------- WS connect once (after auth is ready) ----------
   useEffect(() => {
-    const s = io(WS_URL, { transports: ["websocket", "polling"], withCredentials: true, });
+    if (!ready || !token) return;
+
+    const s = io(WS_URL, {
+      transports: ["websocket", "polling"],
+      withCredentials: true,
+      auth: { token },
+    });
     socketRef.current = s;
 
     s.on("connect", () => {
@@ -268,23 +276,23 @@ export default function ChatPage() {
     if (!text || !roomId || !channelId) return;
     if (channelsHidden) return;
 
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const payload = {
       roomId,
       channelId,
-      who: meName,
       text,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time,
     };
 
     const s = socketRef.current;
     if (s?.connected) {
       s.emit("message", payload, () => {});
     } else {
-      api.chat.send(roomId, channelId, payload).catch(() => {});
+      api.chat.send(roomId, channelId, { text, time }).catch(() => {});
     }
 
-    // зупиняємо typing
-    if (s?.connected) s.emit("typing", { roomId, channelId, who: meName, typing: false });
+    // зупиняємо typing (server resolves the user)
+    if (s?.connected) s.emit("typing", { roomId, channelId, typing: false });
 
     setDraft("");
   }, [draft, roomId, channelId, channelsHidden, meName]);
@@ -304,15 +312,15 @@ export default function ChatPage() {
     if (!roomId || !channelId) return;
     if (channelsHidden) return;
 
-    // typing true
-    s.emit("typing", { roomId, channelId, who: meName, typing: true });
+    // typing true (server fills in `who` from the authenticated socket)
+    s.emit("typing", { roomId, channelId, typing: true });
 
     // typing false after idle
     if (typingOffTimer.current) window.clearTimeout(typingOffTimer.current);
     typingOffTimer.current = window.setTimeout(() => {
-      s.emit("typing", { roomId, channelId, who: meName, typing: false });
+      s.emit("typing", { roomId, channelId, typing: false });
     }, 900);
-  }, [roomId, channelId, channelsHidden, meName]);
+  }, [roomId, channelId, channelsHidden]);
 
   const typingLine = useMemo(() => {
     if (viewState !== "channel") return "";
@@ -410,22 +418,49 @@ export default function ChatPage() {
             <div className="channelsList" role="list">
               {channels.map((c) => {
                 const u = unread[c.id] || 0;
+                const kind = c.kind || "TEXT";
+                const kindLabel =
+                  kind === "VOICE" ? "🎧" : kind === "VIDEO" ? "🎥" : "#";
+                const inActiveCall = activeCall?.channel.id === c.id;
 
                 return (
                   <button
                     key={c.id}
                     type="button"
-                    className={`chItem ${c.id === channelId ? "active" : ""}`}
+                    className={`chItem kind-${kind} ${c.id === channelId ? "active" : ""} ${inActiveCall ? "in-call" : ""}`}
                     aria-label={`Open channel ${c.name}`}
                     onClick={() => openChannel(c.id)}
                   >
-                    <div className="chIcon" aria-hidden="true">
-                      #
+                    <div className="chKindIcon chIcon" aria-hidden="true">
+                      {kindLabel}
                     </div>
                     <div className="chLabel" style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span>{c.name}</span>
                       {u > 0 && <span className="pill">{u}</span>}
                     </div>
+                    {kind !== "TEXT" && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="chJoin"
+                        aria-label={inActiveCall ? `Leave ${c.name}` : `Join ${c.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (inActiveCall) endCall();
+                          else startCall(c);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (inActiveCall) endCall();
+                            else startCall(c);
+                          }
+                        }}
+                      >
+                        {inActiveCall ? "Leave" : "Join"}
+                      </span>
+                    )}
                   </button>
                 );
               })}

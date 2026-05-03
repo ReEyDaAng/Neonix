@@ -20,9 +20,9 @@
     "check": "npm run lint && npm run typecheck",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "set DOTENV_CONFIG_PATH=NUL && jest --coverage",
+    "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "set DOTENV_CONFIG_PATH=NUL && jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -41,6 +41,7 @@
     "dotenv": "^17.3.1",
     "install": "^0.13.0",
     "jsonwebtoken": "^9.0.3",
+    "livekit-server-sdk": "^2.15.2",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",

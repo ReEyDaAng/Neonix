@@ -3,16 +3,10 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { PrismaService } from '../../modules/prisma/prisma.service';
 import { AppLoggerService } from '../../common/logger/logger.service';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
-
-type JwtPayload = {
-  sub: string;
-};
+import { signJwt, verifyJwt } from '../../common/auth/jwt.helper';
 
 type PublicUser = {
   id: string;
@@ -142,45 +136,61 @@ export class AuthService {
   }
 
   /**
-   * Resolve current user by JWT token.
+   * Resolve current user by JWT token (legacy helper kept for the
+   * existing `GET /auth/me` endpoint).
    *
    * @param token bearer token string
    * @returns public user profile
    * @throws UnauthorizedException when token is invalid or user missing
    */
   async me(token: string): Promise<PublicUser> {
-    try {
-      const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const payload = verifyJwt(token);
 
-      const user = (await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-      })) as DbUser | null;
-
-      if (!user) {
-        this.logger.warn(
-          'User lookup by token failed: user not found',
-          'AuthService',
-          {
-            userId: payload.sub,
-          },
-        );
-
-        throw new UnauthorizedException('User not found');
-      }
-
-      this.logger.debug('Current user resolved from token', 'AuthService', {
-        userId: user.id,
-        email: user.email,
-      });
-
-      return this.publicUser(user);
-    } catch (error) {
-      this.logger.warn('Token verification failed', 'AuthService', {
-        error: error instanceof Error ? error.message : 'Unknown token error',
-      });
-
+    if (!payload) {
+      this.logger.warn('Token verification failed', 'AuthService');
       throw new UnauthorizedException('Invalid token');
     }
+
+    const user = (await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    })) as DbUser | null;
+
+    if (!user) {
+      this.logger.warn(
+        'User lookup by token failed: user not found',
+        'AuthService',
+        {
+          userId: payload.sub,
+        },
+      );
+
+      throw new UnauthorizedException('User not found');
+    }
+
+    this.logger.debug('Current user resolved from token', 'AuthService', {
+      userId: user.id,
+    });
+
+    return this.publicUser(user);
+  }
+
+  /**
+   * Resolve a public user profile by id.
+   *
+   * @param id user identifier
+   * @returns public user profile
+   * @throws UnauthorizedException when user no longer exists
+   */
+  async getPublicUserById(id: string): Promise<PublicUser> {
+    const user = (await this.prisma.user.findUnique({
+      where: { id },
+    })) as DbUser | null;
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return this.publicUser(user);
   }
 
   /**
@@ -190,7 +200,7 @@ export class AuthService {
    * @returns token and user profile
    */
   private sign(user: PublicUser): { token: string; user: PublicUser } {
-    const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = signJwt({ sub: user.id });
 
     return {
       token,

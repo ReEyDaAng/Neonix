@@ -1,0 +1,520 @@
+/*
+ * Styles for the voice/video call shell, screen-share viewer, side panel,
+ * chat overlay, and annotation canvas. Layout takes cues from Discord but
+ * keeps the Neonix neon palette via existing CSS variables.
+ */
+
+.callShell {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background:
+    radial-gradient(1200px 700px at 30% 0%, rgba(54, 228, 255, 0.08), transparent 60%),
+    radial-gradient(900px 800px at 90% 100%, rgba(199, 125, 255, 0.07), transparent 60%),
+    rgba(8, 11, 18, 0.96);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+}
+
+.callShell--loading,
+.callShell--error {
+  align-items: center;
+  justify-content: center;
+}
+
+.callShell__loader,
+.callShell__errorCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 32px;
+  box-shadow: var(--shadow);
+  max-width: 420px;
+  text-align: center;
+}
+
+.callShell__errorCard h3 {
+  margin: 0 0 8px;
+}
+
+.callShell__layout {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+}
+
+.callShell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.callShell__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.callShell__badge {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(54, 228, 255, 0.18), rgba(199, 125, 255, 0.18));
+  border: 1px solid var(--border);
+  font-size: 18px;
+}
+
+.callShell__title b {
+  display: block;
+  font-size: 15px;
+}
+
+.callShell__sub {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.callShell__main {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 14px;
+  padding: 16px 22px;
+  min-height: 0;
+}
+
+.callShell__stage {
+  position: relative;
+  min-height: 0;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.callShell__stage [data-lk-theme] {
+  height: 100%;
+}
+
+.callShell__controls {
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* LiveKit ControlBar overrides — keep neon accent */
+.callShell .lk-control-bar {
+  justify-content: center;
+  padding: 12px 0;
+  background: transparent;
+}
+
+.callShell .lk-button {
+  border-radius: 12px;
+}
+
+.callShell .lk-button[data-lk-source][data-lk-enabled="true"] {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #061018;
+}
+
+/* Screen share viewer */
+.callShell__screenShareWrap {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 12px;
+  height: 100%;
+}
+
+.callShell__screen {
+  position: relative;
+  background: black;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.callShell__filmstrip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.callShell__filmTile {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.callShell__filmTile [data-lk-theme] {
+  height: 110px;
+}
+
+/* Side panel (participants + actions) */
+.callSide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.callSide__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.callSide__list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.callSide__row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.callSide__row.me {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.callSide__avatar {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(54, 228, 255, 0.2), rgba(199, 125, 255, 0.2));
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.callSide__info {
+  min-width: 0;
+}
+
+.callSide__info b {
+  display: block;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.callSide__info .muted {
+  font-size: 11px;
+  color: var(--muted2);
+}
+
+.callSide__rowActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.callSide__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.callSide__reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.callSide__react {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.callSide__react:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.callSide__bursts {
+  position: absolute;
+  inset: auto 0 70px 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.callSide__burst {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 28px;
+  animation: callBurst 2.2s ease-out forwards;
+}
+
+@keyframes callBurst {
+  0% { transform: translate(-50%, 0) scale(0.7); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translate(calc(-50% + 40px), -260px) scale(1.2); opacity: 0; }
+}
+
+/* Chat overlay */
+.callChat {
+  position: absolute;
+  right: 22px;
+  bottom: 110px;
+  width: 320px;
+  max-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(11, 15, 20, 0.85);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+  z-index: 5;
+}
+
+.callChat--collapsed {
+  right: 22px;
+  bottom: 110px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.callChat__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.callChat__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.callChat__msg {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.callChat__msg.me {
+  border-color: rgba(54, 228, 255, 0.4);
+  background: rgba(54, 228, 255, 0.06);
+}
+
+.callChat__who {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.callChat__who .time {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--muted2);
+}
+
+.callChat__text {
+  margin-top: 2px;
+}
+
+.callChat__composer {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.callChat__composer input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  color: inherit;
+  border-radius: 10px;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.callChat__composer input:focus {
+  border-color: var(--accent);
+}
+
+/* Annotation overlay */
+.annotationLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.annotationCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+  pointer-events: none;
+}
+
+.annotationCanvas.active {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+.annotationToolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: rgba(11, 15, 20, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px 8px;
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.annotationToolbar input[type="range"] {
+  width: 80px;
+}
+
+.annotationColors {
+  display: flex;
+  gap: 4px;
+}
+
+.annotationSwatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.annotationSwatch.selected {
+  border-color: white;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Channel kind affordances in the chat sidebar */
+.chItem .chKindIcon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+.chItem.kind-VOICE .chKindIcon {
+  background: linear-gradient(135deg, rgba(54, 228, 255, 0.15), transparent);
+  color: var(--accent);
+}
+
+.chItem.kind-VIDEO .chKindIcon {
+  background: linear-gradient(135deg, rgba(199, 125, 255, 0.15), transparent);
+  color: var(--accent2);
+}
+
+.chItem .chJoin {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #061018;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.chItem .chJoin:hover {
+  filter: brightness(1.1);
+}
+
+/* Mobile */
+@media (max-width: 720px) {
+  .callShell__main {
+    grid-template-columns: 1fr;
+  }
+
+  .callShell__screenShareWrap {
+    grid-template-columns: 1fr;
+  }
+
+  .callShell__filmstrip {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .callShell__filmTile [data-lk-theme] {
+    width: 140px;
+    height: 90px;
+  }
+
+  .callChat {
+    right: 8px;
+    bottom: 100px;
+    width: calc(100vw - 16px);
+    max-height: 40vh;
+  }
+}

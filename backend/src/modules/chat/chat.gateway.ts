@@ -10,6 +10,13 @@ import {
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { AppLoggerService } from '../../common/logger/logger.service';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  authenticateSocket,
+  getSocketDisplayName,
+  getSocketUserId,
+  socketData,
+} from '../../common/guards/ws-auth.helper';
 
 type JoinPayload = {
   roomId: string;
@@ -19,21 +26,23 @@ type JoinPayload = {
 type TypingPayload = {
   roomId: string;
   channelId: string;
-  who: string;
   typing: boolean;
 };
 
 type SendPayload = {
   roomId: string;
   channelId: string;
-  who: string;
   text: string;
   time?: string;
 };
 
 type SavedMessage = {
   id: string;
+  who: string;
+  text: string;
   time: string;
+  me: boolean;
+  createdAt: Date;
 };
 
 type RoomMessageEvent = {
@@ -47,9 +56,10 @@ type RoomMessageEvent = {
  * Socket.IO gateway for real-time chat events.
  *
  * Connection flow:
- * - `connection` event opens socket
+ * - `connection` verifies the JWT supplied via `handshake.auth.token`
+ *   (or `Authorization: Bearer …` header) and disconnects unauthenticated peers
  * - `join` subscribes a client to room/channel rooms
- * - `typing` broadcasts typing status
+ * - `typing` broadcasts typing status using server-resolved display name
  * - `message` saves and broadcasts messages to room/channel
  */
 @WebSocketGateway({
@@ -65,10 +75,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * @param chat chat service
    * @param logger application logger
+   * @param prisma Prisma service for resolving authenticated users
    */
   constructor(
     private readonly chat: ChatService,
     private readonly logger: AppLoggerService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -76,9 +88,55 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
    *
    * @param client connected socket client
    */
-  handleConnection(client: Socket): void {
+  async handleConnection(client: Socket): Promise<void> {
+    const userId = authenticateSocket(client);
+
+    if (!userId) {
+      this.logger.warn('Socket rejected: invalid token', 'ChatGateway', {
+        socketId: client.id,
+      });
+      client.emit('auth:error', { message: 'Invalid token' });
+      client.disconnect(true);
+      return;
+    }
+
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, displayName: true, username: true },
+      });
+
+      if (!user) {
+        this.logger.warn(
+          'Socket rejected: user no longer exists',
+          'ChatGateway',
+          {
+            socketId: client.id,
+            userId,
+          },
+        );
+        client.emit('auth:error', { message: 'User not found' });
+        client.disconnect(true);
+        return;
+      }
+
+      const data = socketData(client);
+      data.displayName = user.displayName;
+      data.username = user.username;
+    } catch (error) {
+      this.logger.error(
+        'Socket rejected: failed to resolve user',
+        error instanceof Error ? error.stack : undefined,
+        'ChatGateway',
+        { socketId: client.id, userId },
+      );
+      client.disconnect(true);
+      return;
+    }
+
     this.logger.log('Socket connected', 'ChatGateway', {
       socketId: client.id,
+      userId,
     });
   }
 
@@ -90,6 +148,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(client: Socket): void {
     this.logger.log('Socket disconnected', 'ChatGateway', {
       socketId: client.id,
+      userId: getSocketUserId(client),
     });
   }
 
@@ -105,6 +164,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() body: JoinPayload | undefined,
   ): { ok: boolean; error?: string } {
+    if (!getSocketUserId(client)) {
+      return { ok: false, error: 'unauthenticated' };
+    }
+
     const roomId = body?.roomId;
     const channelId = body?.channelId;
 
@@ -131,6 +194,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     this.logger.log('Socket joined room/channel', 'ChatGateway', {
       socketId: client.id,
+      userId: getSocketUserId(client),
       roomId,
       channelId: channelId ?? null,
     });
@@ -149,10 +213,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() body: TypingPayload | undefined,
   ): void {
+    const userId = getSocketUserId(client);
+    if (!userId) return;
+
     const roomId = body?.roomId;
     const channelId = body?.channelId;
-    const who = body?.who;
     const typing = body?.typing;
+    const who = getSocketDisplayName(client);
 
     if (!roomId || !channelId) {
       this.logger.warn('Typing event ignored: invalid payload', 'ChatGateway', {
@@ -171,9 +238,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     this.logger.debug('Typing event broadcasted', 'ChatGateway', {
       socketId: client.id,
+      userId,
       roomId,
       channelId,
-      who: who ?? null,
       typing: typing ?? null,
     });
   }
@@ -190,18 +257,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() body: SendPayload | undefined,
   ): Promise<{ ok: boolean; error?: string; message?: SavedMessage }> {
+    const userId = getSocketUserId(client);
+    if (!userId) {
+      return { ok: false, error: 'unauthenticated' };
+    }
+
     const roomId = body?.roomId;
     const channelId = body?.channelId;
-    const who = body?.who;
     const rawText = body?.text;
     const trimmedText = rawText?.trim();
+    const who = getSocketDisplayName(client);
 
     if (!roomId || !channelId || !trimmedText) {
       this.logger.warn('Message rejected: invalid payload', 'ChatGateway', {
         socketId: client.id,
+        userId,
         roomId: roomId ?? null,
         channelId: channelId ?? null,
-        who: who ?? null,
       });
 
       return { ok: false, error: 'invalid payload' };
@@ -218,9 +290,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const msg = (await this.chat.sendMessage(
         roomId,
         channelId,
-        who || 'User',
+        who,
         trimmedText,
         time,
+        userId,
       )) as SavedMessage;
 
       this.server.to(`channel:${roomId}:${channelId}`).emit('message', msg);
@@ -236,9 +309,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.logger.log('Message sent successfully', 'ChatGateway', {
         socketId: client.id,
+        userId,
         roomId,
         channelId,
-        who: who || 'User',
+        who,
         messageId: msg.id,
       });
 
@@ -250,9 +324,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         'ChatGateway',
         {
           socketId: client.id,
+          userId,
           roomId: roomId ?? null,
           channelId: channelId ?? null,
-          who: who ?? null,
         },
       );
 

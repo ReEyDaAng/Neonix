@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       className="appRoot"
       data-theme={theme}
       data-accent={accent}
-      style={{ ["--glow"]: (glow / 100).toFixed(2) }}
+      style={{ ["--glow" as string]: (glow / 100).toFixed(2) } as React.CSSProperties}
     >
       <Topbar />
       <main className="container">

@@ -212,3 +212,72 @@ curl -I https://api.neonix.app/api/docs
 # перегляд логів
 ./scripts/prod-logs.sh
 ```
+
+## 16. Realtime media (LiveKit + coturn)
+
+### 16.1 DNS і сертифікати
+1. Створити A-записи:
+   - `livekit.neonix.app` → IP VPS
+   - `turn.neonix.app` → IP VPS
+2. Випустити Let's Encrypt сертифікати:
+   ```bash
+   sudo certbot certonly --standalone -d livekit.neonix.app
+   sudo certbot certonly --standalone -d turn.neonix.app
+   ```
+3. Зареєструвати deploy-hook для автоматичного оновлення coturn:
+   ```bash
+   sudo certbot renew --deploy-hook /home/neonix/apps/neonix/scripts/coturn-renew-hook.sh
+   ```
+
+### 16.2 Firewall (UFW)
+```bash
+sudo ufw allow 443/tcp                       # Nginx
+sudo ufw allow 50000:50100/udp               # LiveKit RTC media
+sudo ufw allow 50000:50100/tcp               # LiveKit TCP fallback
+sudo ufw allow 3478                          # STUN/TURN
+sudo ufw allow 5349/tcp                      # TURN over TLS
+sudo ufw allow 49160:49200/udp               # coturn relay
+```
+
+### 16.3 Конфігурація
+1. Згенерувати LiveKit API key + secret:
+   ```bash
+   ./scripts/gen-livekit-key.sh >> .env.backend
+   ```
+2. Заповнити у `.env.backend`:
+   - `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`
+   - `LIVEKIT_URL=wss://livekit.neonix.app`
+   - `TURN_HOST=turn.neonix.app`, `TURN_USERNAME`, `TURN_PASSWORD`
+3. У `infra/coturn/turnserver.conf` замінити плейсхолдери (через `envsubst` під час старту контейнера це відбувається автоматично, але якщо запускати поза docker — підставити вручну):
+   - `__TURN_EXTERNAL_IP__`, `__VPS_PUBLIC_IP__`, `__TURN_USERNAME__`, `__TURN_PASSWORD__`.
+4. Покласти Nginx-конфіг у `/etc/nginx/sites-available/livekit.neonix.app`:
+   ```bash
+   sudo cp infra/nginx/livekit.neonix.app.conf /etc/nginx/sites-available/
+   sudo ln -s /etc/nginx/sites-available/livekit.neonix.app.conf \
+              /etc/nginx/sites-enabled/livekit.neonix.app.conf
+   sudo nginx -t && sudo nginx -s reload
+   ```
+
+### 16.4 Запуск нових сервісів
+```bash
+docker compose -f docker-compose.prod.yml up -d livekit coturn
+docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml restart backend frontend
+```
+
+### 16.5 Перевірка
+1. `curl https://livekit.neonix.app` — повинно повернути LiveKit OK.
+2. `livekit-cli room list --url wss://livekit.neonix.app --api-key $LIVEKIT_API_KEY --api-secret $LIVEKIT_API_SECRET` — повертає порожній список.
+3. `turnutils_uclient -t -T -u $TURN_USERNAME -w $TURN_PASSWORD turn.neonix.app` — успішне відведення relay-кандидата.
+4. На двох пристроях у різних мережах (LAN + 4G):
+   - Зайти у Neonix, відкрити VOICE або VIDEO канал.
+   - Натиснути Join.
+   - Через chrome://webrtc-internals переконатися, що при заблокованому UDP вибирається ICE-кандидат з типом `relay` (TURN).
+   - Перевірити screen-share, малювання-анотації, raise-hand, передачу presenter-ролі.
+
+### 16.6 Можливі ризики на VPS
+- **Bandwidth**: 30 учасників × ~3 Mbps ≈ 90 Mbps egress peak. Перевірити план провайдера.
+- **UDP блокується** деякими хостингами — попередньо перевірити `nc -u`.
+- **`external-ip` у `livekit.yaml`/`turnserver.conf`** має точно збігатися з публічним IP VPS, інакше ICE падає на симетричному NAT.
+- **Поновлення Let's Encrypt**: переконатися, що `coturn-renew-hook.sh` зареєстровано — без перезапуску coturn нові сертифікати не активуються.
+
