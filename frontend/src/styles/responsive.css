@@ -97,6 +97,15 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(245, 247, 251, 0.92));
 }
 
+.settingsField {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* Channel kind radio picker (Text / Voice / Video) */
 .kindPicker {
   display: grid;

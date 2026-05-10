@@ -16,7 +16,8 @@ import {
   type RoomOptions,
 } from "livekit-client";
 import "@livekit/components-styles";
-import { api, type Channel } from "@/lib/api";
+import { api, type Channel, type Room } from "@/lib/api";
+import { useAuth } from "@/state/auth";
 import { useCalls } from "@/state/calls";
 import { CallChatOverlay } from "./CallChatOverlay";
 import { ScreenShareViewer } from "./ScreenShareViewer";
@@ -67,6 +68,8 @@ const ROOM_OPTIONS: RoomOptions = {
 
 interface CallShellProps {
   channel: Channel;
+  /** Room context — used to derive owner-only annotation permissions. */
+  room?: Room | null;
   onClose: () => void;
 }
 
@@ -78,7 +81,7 @@ interface CallShellProps {
  * @param props channel + close handler
  * @returns overlay element
  */
-export function CallShell({ channel, onClose }: CallShellProps) {
+export function CallShell({ channel, room, onClose }: CallShellProps) {
   const [token, setToken] = useState<string | null>(null);
   const [serverUrl, setServerUrl] = useState<string>(LIVEKIT_FALLBACK_URL);
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +160,7 @@ export function CallShell({ channel, onClose }: CallShellProps) {
         onDisconnected={onClose}
         data-lk-theme="default"
       >
-        <CallShellInner channel={channel} onLeave={onClose} />
+        <CallShellInner channel={channel} room={room ?? null} onLeave={onClose} />
         <RoomAudioRenderer />
       </LiveKitRoom>
     </div>
@@ -171,7 +174,20 @@ export function CallShell({ channel, onClose }: CallShellProps) {
  * @param props channel + leave handler
  * @returns body of the call overlay
  */
-function CallShellInner({ channel, onLeave }: { channel: Channel; onLeave: () => void }) {
+function CallShellInner({
+  channel,
+  room,
+  onLeave,
+}: {
+  channel: Channel;
+  room?: Room | null;
+  onLeave: () => void;
+}) {
+  const { user } = useAuth();
+  const canClearAll = Boolean(
+    user?.id && room?.ownerId && user.id === room.ownerId,
+  );
+
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -214,7 +230,7 @@ function CallShellInner({ channel, onLeave }: { channel: Channel; onLeave: () =>
       <div className="callShell__main">
         <div className="callShell__stage">
           {hasScreenShare ? (
-            <ScreenShareViewer track={screenTracks[0]} cameraTracks={cameraTracks} channelId={channel.id} />
+            <ScreenShareViewer track={screenTracks[0]} cameraTracks={cameraTracks} channelId={channel.id} canClearAll={canClearAll} />
           ) : (
             <GridLayout tracks={cameraTracks}>
               <ParticipantTile />
@@ -251,5 +267,11 @@ function CallShellInner({ channel, onLeave }: { channel: Channel; onLeave: () =>
 export function ActiveCallOverlay() {
   const { activeCall, endCall } = useCalls();
   if (!activeCall) return null;
-  return <CallShell channel={activeCall.channel} onClose={endCall} />;
+  return (
+    <CallShell
+      channel={activeCall.channel}
+      room={activeCall.room ?? null}
+      onClose={endCall}
+    />
+  );
 }

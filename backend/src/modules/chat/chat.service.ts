@@ -94,6 +94,41 @@ export class ChatService {
   }
 
   /**
+   * Resolve a room with its owner mini-profile, used by the server-settings
+   * modal on the frontend to decide which buttons to render.
+   *
+   * @param roomId target room
+   * @returns room with embedded owner shape `{ id, displayName, username }`
+   *   or null when room does not exist
+   */
+  async getRoomWithOwner(roomId: string) {
+    return this.prisma.room.findUnique({
+      where: { id: roomId },
+      include: {
+        owner: {
+          select: { id: true, displayName: true, username: true },
+        },
+      },
+    });
+  }
+
+  /**
+   * Quick check used by permission-sensitive operations
+   * (currently only "clear all annotations").
+   *
+   * @param userId actor
+   * @param roomId target room
+   * @returns true if the user owns the room
+   */
+  async isRoomOwner(userId: string, roomId: string): Promise<boolean> {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { ownerId: true },
+    });
+    return Boolean(room?.ownerId && room.ownerId === userId);
+  }
+
+  /**
    * List channels for a specified room.
    *
    * @param roomId - room identifier
@@ -165,9 +200,15 @@ export class ChatService {
    * @param name room display name
    * @param meta optional tagline shown under the name
    * @param badge optional 1-3 char badge text
+   * @param ownerId
    * @returns created room (with empty channels array — UI will refetch)
    */
-  async createRoom(name: string, meta?: string, badge?: string) {
+  async createRoom(
+    name: string,
+    meta?: string,
+    badge?: string,
+    ownerId?: string | null,
+  ) {
     const trimmedName = name.trim();
     const trimmedMeta = meta?.trim() || 'New room';
     const trimmedBadge =
@@ -179,6 +220,7 @@ export class ChatService {
         name: trimmedName,
         meta: trimmedMeta,
         badge: trimmedBadge,
+        ownerId: ownerId ?? null,
       },
     });
 

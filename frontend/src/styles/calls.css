@@ -474,20 +474,28 @@
   color: var(--accent2);
 }
 
-.chItem .chJoin {
-  margin-left: auto;
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #061018;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
+.chItem .chLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-.chItem .chJoin:hover {
-  filter: brightness(1.1);
+.chItem.in-call {
+  background: color-mix(in srgb, var(--accent) calc(8% * var(--glow)), transparent);
+  border-color: color-mix(in srgb, var(--accent) calc(45% * var(--glow)), var(--border));
+}
+
+.chItem .chLive {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--accent) calc(25% * var(--glow)), var(--card2));
+  border-color: color-mix(in srgb, var(--accent) calc(60% * var(--glow)), var(--border));
+  color: var(--accent);
 }
 
 /* Mobile */

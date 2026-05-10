@@ -11,6 +11,8 @@ interface ScreenShareViewerProps {
   track: TrackReferenceOrPlaceholder;
   cameraTracks: TrackReferenceOrPlaceholder[];
   channelId: string;
+  /** True if the current viewer is the room owner (controls Clear-all). */
+  canClearAll?: boolean;
 }
 
 /**
@@ -20,7 +22,7 @@ interface ScreenShareViewerProps {
  * @param props track refs + channel id
  * @returns layout element
  */
-export function ScreenShareViewer({ track, cameraTracks, channelId }: ScreenShareViewerProps) {
+export function ScreenShareViewer({ track, cameraTracks, channelId, canClearAll = false }: ScreenShareViewerProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export function ScreenShareViewer({ track, cameraTracks, channelId }: ScreenShar
     <div className="callShell__screenShareWrap" ref={wrapperRef}>
       <div className="callShell__screen">
         <ParticipantTile trackRef={track} disableSpeakingIndicator />
-        <AnnotationCanvas channelId={channelId} />
+        <AnnotationCanvas channelId={channelId} canClearAll={canClearAll} />
       </div>
 
       <aside className="callShell__filmstrip" aria-label="Participants">

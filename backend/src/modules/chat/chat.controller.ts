@@ -57,6 +57,7 @@ export class ChatController {
    * semantics are out of scope for this prototype.
    *
    * @param dto room creation payload
+   * @param req
    * @returns created Room
    */
   @UseGuards(JwtAuthGuard)
@@ -64,8 +65,28 @@ export class ChatController {
   @Post('rooms')
   @ApiOperation({ summary: 'Create a new room (authenticated)' })
   @ApiResponse({ status: 201, description: 'Room created' })
-  createRoom(@Body() dto: CreateRoomDto) {
-    return this.chat.createRoom(dto.name, dto.meta, dto.badge);
+  createRoom(@Body() dto: CreateRoomDto, @Req() req: Request) {
+    const userId = req.user?.id ?? null;
+    return this.chat.createRoom(dto.name, dto.meta, dto.badge, userId);
+  }
+
+  /**
+   * Fetch a single room together with the owner's public mini-profile.
+   * Used by the server-settings modal on the frontend to decide which
+   * actions a viewer can take.
+   *
+   * @param roomId room id
+   * @returns room with embedded `owner` (or null when none)
+   */
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('rooms/:roomId')
+  @ApiOperation({
+    summary: 'Get a room with its owner profile (authenticated)',
+  })
+  @ApiResponse({ status: 200, description: 'Room fetched' })
+  room(@Param('roomId') roomId: string) {
+    return this.chat.getRoomWithOwner(roomId);
   }
 
   /**

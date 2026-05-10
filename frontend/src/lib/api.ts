@@ -24,6 +24,14 @@ export interface Room {
   name: string;
   meta?: string;
   badge?: string;
+  ownerId?: string | null;
+}
+
+/**
+ * Room with the owner profile expanded — returned by GET /rooms/:id.
+ */
+export interface RoomWithOwner extends Room {
+  owner?: { id: string; displayName: string; username: string } | null;
 }
 
 /**
@@ -189,6 +197,12 @@ export const api = {
      * @returns promise with array of rooms
      */
     rooms: () => http<Room[]>("/rooms"),
+    /**
+     * Fetch a single room with its owner profile expanded.
+     * @param roomId target room
+     * @returns promise with room + owner mini-profile
+     */
+    room: (roomId: string) => http<RoomWithOwner>(`/rooms/${roomId}`),
     /**
      * Create a new room (server). Backend seeds a "general" text channel.
      * @param body room creation payload

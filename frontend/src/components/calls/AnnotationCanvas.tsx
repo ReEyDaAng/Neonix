@@ -9,6 +9,8 @@ import { api } from "@/lib/api";
 
 type Stroke = {
   id: string;
+  /** identity of the participant who drew this stroke (used for per-author erase) */
+  authorId: string;
   color: string;
   width: number;
   // Normalized 0..1 coordinates so they survive resolution changes.
@@ -17,10 +19,15 @@ type Stroke = {
 
 type AnnotationMessage =
   | { type: "stroke"; stroke: Stroke }
-  | { type: "clear" };
+  /** Server-owner-only: wipe everyone's strokes */
+  | { type: "clear" }
+  /** Anyone: wipe only the strokes drawn by `authorId` (themselves) */
+  | { type: "clearAuthor"; authorId: string };
 
 interface AnnotationCanvasProps {
   channelId: string;
+  /** Whether the current viewer is the room owner (controls "Clear all" availability) */
+  canClearAll?: boolean;
 }
 
 const COLOR_PALETTE = ["#ff5252", "#ffd54f", "#36e4ff", "#69f0ae", "#c77dff"];
@@ -33,7 +40,7 @@ const COLOR_PALETTE = ["#ff5252", "#ffd54f", "#36e4ff", "#69f0ae", "#c77dff"];
  * @param props channel id
  * @returns canvas overlay
  */
-export function AnnotationCanvas({ channelId }: AnnotationCanvasProps) {
+export function AnnotationCanvas({ channelId, canClearAll = false }: AnnotationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [color, setColor] = useState<string>(COLOR_PALETTE[2]);
@@ -72,6 +79,8 @@ export function AnnotationCanvas({ channelId }: AnnotationCanvasProps) {
         setStrokes((prev) => [...prev, parsed.stroke]);
       } else if (parsed.type === "clear") {
         setStrokes([]);
+      } else if (parsed.type === "clearAuthor") {
+        setStrokes((prev) => prev.filter((s) => s.authorId !== parsed.authorId));
       }
     } catch {
       // ignore malformed messages
@@ -144,8 +153,10 @@ export function AnnotationCanvas({ channelId }: AnnotationCanvasProps) {
       const wrap = containerRef.current;
       if (!wrap) return;
       const rect = wrap.getBoundingClientRect();
+      const myId = localParticipant?.identity || "anon";
       drawingRef.current = {
-        id: `${localParticipant?.identity || "anon"}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        id: `${myId}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        authorId: myId,
         color,
         width,
         points: [
@@ -196,6 +207,15 @@ export function AnnotationCanvas({ channelId }: AnnotationCanvasProps) {
     broadcast({ type: "stroke", stroke });
   }, [enabled, broadcast]);
 
+  const myAuthorId = localParticipant?.identity || "anon";
+
+  /** Anyone can wipe just their own strokes. */
+  const clearMine = useCallback(() => {
+    setStrokes((prev) => prev.filter((s) => s.authorId !== myAuthorId));
+    broadcast({ type: "clearAuthor", authorId: myAuthorId });
+  }, [broadcast, myAuthorId]);
+
+  /** Owner-only — broadcasts a global wipe (shows up red and is gated by `canClearAll`). */
   const clearAll = useCallback(() => {
     setStrokes([]);
     broadcast({ type: "clear" });
@@ -242,9 +262,21 @@ export function AnnotationCanvas({ channelId }: AnnotationCanvasProps) {
           onChange={(e) => setWidth(Number(e.target.value))}
           aria-label="Stroke width"
         />
-        <button type="button" className="btn ghost" onClick={clearAll} aria-label="Clear annotations">
-          🧹 Clear
+        <button type="button" className="btn ghost" onClick={clearMine} aria-label="Clear my drawings" title="Clear my drawings">
+          ⌫ Mine
         </button>
+        {canClearAll && (
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={clearAll}
+            aria-label="Clear all drawings (owner)"
+            title="Clear all drawings — owner only"
+            style={{ color: "var(--accent2)" }}
+          >
+            🧹 All
+          </button>
+        )}
       </div>
     </div>
   );

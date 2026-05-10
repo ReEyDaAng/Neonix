@@ -24,6 +24,7 @@ model User {
 
   messages    Message[]
   annotations Annotation[]
+  ownedRooms  Room[]   @relation("RoomOwner")
 }
 
 model Room {
@@ -31,8 +32,10 @@ model Room {
   name      String
   meta      String
   badge     String
+  ownerId   String?
   createdAt DateTime @default(now())
 
+  owner    User?     @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   channels Channel[]
   messages Message[]
 }

@@ -6,7 +6,7 @@ import { io, Socket } from "socket.io-client";
 import { api } from "@/lib/api";
 import { useAuth } from "@/state/auth";
 import { useCalls } from "@/state/calls";
-import type { Room, Channel, Message as ApiMessage } from "@/lib/api";
+import type { Room, RoomWithOwner, Channel, Message as ApiMessage } from "@/lib/api";
 
 // Locally extend Message to include roomId and channelId for state
 type Message = ApiMessage & { roomId: string; channelId: string };
@@ -97,6 +97,32 @@ export default function ChatPage() {
   const [newChannelKind, setNewChannelKind] = useState<"TEXT" | "VOICE" | "VIDEO">("TEXT");
   const [createChannelError, setCreateChannelError] = useState<string | null>(null);
   const [createChannelSubmitting, setCreateChannelSubmitting] = useState(false);
+
+  // Server settings modal state — fetches the room with its owner profile.
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsRoom, setSettingsRoom] = useState<RoomWithOwner | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!showSettings || !roomId) return;
+    let alive = true;
+    setSettingsLoading(true);
+    setSettingsRoom(null);
+    api.chat
+      .room(roomId)
+      .then((r) => {
+        if (alive) setSettingsRoom(r);
+      })
+      .catch(() => {
+        if (alive) setSettingsRoom(null);
+      })
+      .finally(() => {
+        if (alive) setSettingsLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [showSettings, roomId]);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -558,6 +584,18 @@ export default function ChatPage() {
 
               <button
                 type="button"
+                className="btn ghost channelsToggle phdAction"
+                onClick={() => setShowSettings(true)}
+                aria-label="Server settings"
+                title="Server settings"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+              </button>
+              <button
+                type="button"
                 className="btn ghost channelsToggle"
                 onClick={() => setChannelsHidden(true)}
                 aria-label="Hide channels"
@@ -571,48 +609,50 @@ export default function ChatPage() {
               {channels.map((c) => {
                 const u = unread[c.id] || 0;
                 const kind = c.kind || "TEXT";
-                const kindLabel =
-                  kind === "VOICE" ? "🎧" : kind === "VIDEO" ? "🎥" : "#";
+                const isMedia = kind === "VOICE" || kind === "VIDEO";
                 const inActiveCall = activeCall?.channel.id === c.id;
+                const ariaLabel = isMedia
+                  ? inActiveCall
+                    ? `Leave ${kind === "VOICE" ? "voice" : "video"} channel ${c.name}`
+                    : `Join ${kind === "VOICE" ? "voice" : "video"} channel ${c.name}`
+                  : `Open channel ${c.name}`;
 
                 return (
                   <button
                     key={c.id}
                     type="button"
                     className={`chItem kind-${kind} ${c.id === channelId ? "active" : ""} ${inActiveCall ? "in-call" : ""}`}
-                    aria-label={`Open channel ${c.name}`}
-                    onClick={() => openChannel(c.id)}
+                    aria-label={ariaLabel}
+                    onClick={() => {
+                      if (isMedia) {
+                        if (inActiveCall) endCall();
+                        else startCall(c, room ?? null);
+                      } else {
+                        openChannel(c.id);
+                      }
+                    }}
                   >
                     <div className="chKindIcon chIcon" aria-hidden="true">
-                      {kindLabel}
+                      {kind === "VOICE" ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                          <path d="M21 19a2 2 0 0 1-2 2h-1v-7h3z" />
+                          <path d="M3 19a2 2 0 0 0 2 2h1v-7H3z" />
+                        </svg>
+                      ) : kind === "VIDEO" ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m22 8-6 4 6 4V8Z" />
+                          <rect width="14" height="12" x="2" y="6" rx="2" ry="2" />
+                        </svg>
+                      ) : (
+                        <span style={{ fontWeight: 800 }}>#</span>
+                      )}
                     </div>
-                    <div className="chLabel" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div className="chLabel">
                       <span>{c.name}</span>
                       {u > 0 && <span className="pill">{u}</span>}
+                      {inActiveCall && <span className="pill chLive" aria-label="In call">LIVE</span>}
                     </div>
-                    {kind !== "TEXT" && (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        className="chJoin"
-                        aria-label={inActiveCall ? `Leave ${c.name}` : `Join ${c.name}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (inActiveCall) endCall();
-                          else startCall(c);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (inActiveCall) endCall();
-                            else startCall(c);
-                          }
-                        }}
-                      >
-                        {inActiveCall ? "Leave" : "Join"}
-                      </span>
-                    )}
                   </button>
                 );
               })}
@@ -784,6 +824,81 @@ export default function ChatPage() {
           </div>
         </aside>
       </div>
+
+      {showSettings && (
+        <div
+          className="modalBackdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Server settings"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowSettings(false);
+          }}
+        >
+          <div className="modalCard">
+            <div className="modalHead">
+              <h3 className="title">Server settings</h3>
+              <p className="subtitle">{room?.name || "—"}</p>
+            </div>
+            <div className="modalBody">
+              {settingsLoading ? (
+                <p className="muted">Loading…</p>
+              ) : (
+                <>
+                  <div className="field">
+                    <label className="label">Owner</label>
+                    <div className="settingsField">
+                      {settingsRoom?.owner ? (
+                        <div>
+                          <b>{settingsRoom.owner.displayName}</b>{" "}
+                          <span className="muted">{settingsRoom.owner.username}</span>
+                          {user?.id === settingsRoom.owner.id && (
+                            <span className="pill" style={{ marginLeft: 8 }}>You</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="muted">No owner assigned (legacy server)</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="field">
+                    <label className="label">Roles &amp; permissions</label>
+                    <div className="settingsField" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div>
+                        <b>Owner</b> — full control of the server (manage channels, clear all annotations, transfer ownership).
+                      </div>
+                      <div className="muted">
+                        Custom roles with granular permissions are coming soon — this is the
+                        skeleton other roles will hang off of.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="field">
+                    <label className="label">Annotations</label>
+                    <div className="settingsField muted">
+                      Anyone in a call can draw on a shared screen. Each participant can
+                      erase only their own strokes; the server owner has an extra
+                      <b style={{ color: "var(--text)" }}> Clear all </b>
+                      action in the annotation toolbar.
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="modalActions">
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => setShowSettings(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {creatingChannel && (
         <div

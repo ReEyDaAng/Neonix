@@ -7,15 +7,17 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import type { Channel } from "@/lib/api";
+import type { Channel, Room } from "@/lib/api";
 
 type ActiveCall = {
   channel: Channel;
+  /** Room context — needed for owner-only operations like Clear-all annotations */
+  room?: Room | null;
 };
 
 type CallsCtx = {
   activeCall: ActiveCall | null;
-  startCall: (channel: Channel) => void;
+  startCall: (channel: Channel, room?: Room | null) => void;
   endCall: () => void;
 };
 
@@ -31,8 +33,8 @@ const Ctx = createContext<CallsCtx | null>(null);
 export function CallsProvider({ children }: { children: React.ReactNode }) {
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
 
-  const startCall = useCallback((channel: Channel) => {
-    setActiveCall({ channel });
+  const startCall = useCallback((channel: Channel, room?: Room | null) => {
+    setActiveCall({ channel, room: room ?? null });
   }, []);
 
   const endCall = useCallback(() => {
