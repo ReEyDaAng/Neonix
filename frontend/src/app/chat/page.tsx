@@ -91,6 +91,13 @@ export default function ChatPage() {
   const [createServerError, setCreateServerError] = useState<string | null>(null);
   const [createServerSubmitting, setCreateServerSubmitting] = useState(false);
 
+  // Create-channel dialog state
+  const [creatingChannel, setCreatingChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
+  const [newChannelKind, setNewChannelKind] = useState<"TEXT" | "VOICE" | "VIDEO">("TEXT");
+  const [createChannelError, setCreateChannelError] = useState<string | null>(null);
+  const [createChannelSubmitting, setCreateChannelSubmitting] = useState(false);
+
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -342,6 +349,45 @@ export default function ChatPage() {
     }
   }
 
+  function openCreateChannel() {
+    setNewChannelName("");
+    setNewChannelKind("TEXT");
+    setCreateChannelError(null);
+    setCreatingChannel(true);
+  }
+
+  async function submitCreateChannel(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    const name = newChannelName.trim();
+    if (name.length < 1) {
+      setCreateChannelError("Name is required");
+      return;
+    }
+    if (!roomId) {
+      setCreateChannelError("Pick a server first");
+      return;
+    }
+    setCreateChannelSubmitting(true);
+    setCreateChannelError(null);
+    try {
+      const created = await api.chat.createChannel(roomId, {
+        name,
+        kind: newChannelKind,
+      });
+      // refresh channels list, then select the newly created one
+      const fresh = await api.chat.channels(roomId);
+      setChannels(fresh || []);
+      setChannelsHidden(false);
+      setChannelId(created.id);
+      setCreatingChannel(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to create channel";
+      setCreateChannelError(message);
+    } finally {
+      setCreateChannelSubmitting(false);
+    }
+  }
+
   function openChannel(id: string) {
     setChannelsHidden(false);
     setChannelId(id);
@@ -570,6 +616,22 @@ export default function ChatPage() {
                   </button>
                 );
               })}
+
+              <button
+                type="button"
+                className="chItem chItem--create"
+                aria-label="Create a new channel"
+                onClick={openCreateChannel}
+              >
+                <div className="chKindIcon chIcon" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </div>
+                <div className="chLabel">
+                  <span>Create channel</span>
+                </div>
+              </button>
             </div>
           </aside>
         )}
@@ -722,6 +784,107 @@ export default function ChatPage() {
           </div>
         </aside>
       </div>
+
+      {creatingChannel && (
+        <div
+          className="modalBackdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Create a new channel"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !createChannelSubmitting) {
+              setCreatingChannel(false);
+            }
+          }}
+        >
+          <form className="modalCard" onSubmit={submitCreateChannel}>
+            <div className="modalHead">
+              <h3 className="title">Create channel</h3>
+              <p className="subtitle">In <b>{room?.name || "this server"}</b>. Pick a kind and a name.</p>
+            </div>
+            <div className="modalBody">
+              <div className="field">
+                <label className="label">Channel type</label>
+                <div className="kindPicker" role="radiogroup" aria-label="Channel kind">
+                  {(["TEXT", "VOICE", "VIDEO"] as const).map((k) => (
+                    <label
+                      key={k}
+                      className={`kindOption kind-${k} ${newChannelKind === k ? "selected" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="kind"
+                        value={k}
+                        checked={newChannelKind === k}
+                        onChange={() => setNewChannelKind(k)}
+                        disabled={createChannelSubmitting}
+                      />
+                      <span className="kindOption__icon" aria-hidden="true">
+                        {k === "VOICE" ? (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                            <path d="M21 19a2 2 0 0 1-2 2h-1v-7h3z" />
+                            <path d="M3 19a2 2 0 0 0 2 2h1v-7H3z" />
+                          </svg>
+                        ) : k === "VIDEO" ? (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m22 8-6 4 6 4V8Z" />
+                            <rect width="14" height="12" x="2" y="6" rx="2" ry="2" />
+                          </svg>
+                        ) : (
+                          <span style={{ fontWeight: 800, fontSize: 18 }}>#</span>
+                        )}
+                      </span>
+                      <span className="kindOption__label">
+                        {k === "TEXT" ? "Text" : k === "VOICE" ? "Voice" : "Video"}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="label" htmlFor="cc-name">Name</label>
+                <input
+                  id="cc-name"
+                  className="input"
+                  autoFocus
+                  maxLength={40}
+                  value={newChannelName}
+                  onChange={(e) => setNewChannelName(e.target.value)}
+                  placeholder="general"
+                  required
+                  disabled={createChannelSubmitting}
+                />
+                <div className="hint">Spaces and capitalisation are converted to <code>kebab-case</code>.</div>
+              </div>
+
+              {createChannelError && (
+                <p className="hint" role="alert" style={{ color: "#ff7676" }}>
+                  {createChannelError}
+                </p>
+              )}
+            </div>
+            <div className="modalActions">
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setCreatingChannel(false)}
+                disabled={createChannelSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={createChannelSubmitting}
+              >
+                {createChannelSubmitting ? "Creating…" : "Create"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {creatingServer && (
         <div

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsEnum,
   IsOptional,
   IsString,
   Matches,
@@ -69,4 +70,30 @@ export class CreateRoomDto {
     message: 'badge must contain only ASCII letters, digits, or spaces',
   })
   badge?: string;
+}
+
+/**
+ * Body for creating a new channel inside a room.
+ *
+ * `name` is normalized to lowercase kebab-case server-side (so users can
+ * type 'General Chat' and end up with `general-chat`). The DB enforces
+ * uniqueness of (roomId, name).
+ */
+export class CreateChannelDto {
+  @ApiProperty({
+    description: 'Channel name (slugified server-side)',
+    example: 'study-room',
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(40)
+  name!: string;
+
+  @ApiProperty({
+    description: 'Channel kind',
+    enum: ['TEXT', 'VOICE', 'VIDEO'],
+    example: 'TEXT',
+  })
+  @IsEnum(['TEXT', 'VOICE', 'VIDEO'] as const)
+  kind!: 'TEXT' | 'VOICE' | 'VIDEO';
 }

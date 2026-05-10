@@ -19,7 +19,7 @@ import type { Request } from 'express';
 import { ChatService } from './chat.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { CreateRoomDto, SendMessageDto } from './dto';
+import { CreateChannelDto, CreateRoomDto, SendMessageDto } from './dto';
 
 /**
  * Controller handling chat-related endpoints for rooms, channels, and messages.
@@ -80,6 +80,24 @@ export class ChatController {
   @ApiResponse({ status: 200, description: 'Channels fetched' })
   channels(@Param('roomId') roomId: string) {
     return this.chat.listChannels(roomId);
+  }
+
+  /**
+   * Create a new channel inside a room.
+   * @param roomId target room id (URL param)
+   * @param dto channel payload (name + kind)
+   * @returns created channel
+   */
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('rooms/:roomId/channels')
+  @ApiOperation({ summary: 'Create a new channel (authenticated)' })
+  @ApiResponse({ status: 201, description: 'Channel created' })
+  createChannel(
+    @Param('roomId') roomId: string,
+    @Body() dto: CreateChannelDto,
+  ) {
+    return this.chat.createChannel(roomId, dto.name, dto.kind);
   }
 
   /**

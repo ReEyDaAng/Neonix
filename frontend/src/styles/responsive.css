@@ -97,6 +97,82 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(245, 247, 251, 0.92));
 }
 
+/* Channel kind radio picker (Text / Voice / Video) */
+.kindPicker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+.kindOption {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
+  user-select: none;
+}
+.kindOption input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.kindOption__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--card2);
+  color: var(--muted);
+}
+.kindOption__label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.kindOption:hover {
+  border-color: color-mix(in srgb, var(--accent) calc(35% * var(--glow)), var(--border));
+}
+.kindOption.selected {
+  border-color: color-mix(in srgb, var(--accent) calc(60% * var(--glow)), var(--border));
+  background: color-mix(in srgb, var(--accent) calc(10% * var(--glow)), var(--card));
+}
+.kindOption.selected .kindOption__icon {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) calc(20% * var(--glow)), var(--card2));
+}
+.kindOption.selected .kindOption__label {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Dashed "Create channel" row at the bottom of channelsList */
+.chItem--create {
+  border-style: dashed !important;
+  color: var(--muted);
+}
+.chItem--create:hover {
+  border-style: solid !important;
+  border-color: color-mix(in srgb, var(--accent) calc(45% * var(--glow)), var(--border)) !important;
+  color: var(--text);
+}
+.chItem--create .chKindIcon {
+  background: transparent;
+  border-style: dashed;
+}
+.chItem--create:hover .chKindIcon {
+  border-style: solid;
+  color: var(--accent);
+}
+
 /* ===========================================================
  * 0. Icon buttons (inline SVG) — guaranteed render across all
  *    browsers / themes (replaces emoji glyphs that fall back to

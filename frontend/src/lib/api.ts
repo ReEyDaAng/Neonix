@@ -182,6 +182,20 @@ export const api = {
      */
     channels: (roomId: string) => http<Channel[]>(`/rooms/${roomId}/channels`),
     /**
+     * Create a new channel inside a room.
+     * @param roomId target room
+     * @param body channel payload (name + kind)
+     * @returns promise with the created channel
+     */
+    createChannel: (
+      roomId: string,
+      body: { name: string; kind: ChannelKind },
+    ) =>
+      http<Channel>(`/rooms/${roomId}/channels`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    /**
      * Fetch messages for a specific channel in a room.
      * @param roomId room identifier
      * @param channelId channel identifier

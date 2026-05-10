@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../modules/prisma/prisma.service';
 import { AppLoggerService } from '../../common/logger/logger.service';
 
@@ -189,6 +193,66 @@ export class ChatService {
     });
 
     return room;
+  }
+
+  /**
+   * Create a new channel inside an existing room.
+   *
+   * Channel names are slugified to lowercase kebab-case so that the URL-style
+   * "#" presentation is consistent across servers. The DB enforces
+   * `@@unique([roomId, name])` so a duplicate slug raises a P2002.
+   *
+   * @param roomId target room id
+   * @param rawName raw channel name from user input
+   * @param kind channel kind (TEXT/VOICE/VIDEO)
+   * @returns created channel
+   * @throws NotFoundException when room does not exist
+   * @throws BadRequestException when name slug is empty or already taken
+   */
+  async createChannel(
+    roomId: string,
+    rawName: string,
+    kind: 'TEXT' | 'VOICE' | 'VIDEO',
+  ) {
+    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+
+    const slug = rawName
+      .normalize('NFKD')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40);
+
+    if (!slug) {
+      throw new BadRequestException(
+        'Channel name must contain at least one alphanumeric character',
+      );
+    }
+
+    const existing = await this.prisma.channel.findFirst({
+      where: { roomId, name: slug },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        `Channel "${slug}" already exists in this room`,
+      );
+    }
+
+    const channel = await this.prisma.channel.create({
+      data: { roomId, name: slug, kind },
+    });
+
+    this.logger.log('Channel created', 'ChatService', {
+      roomId,
+      channelId: channel.id,
+      kind,
+      name: slug,
+    });
+
+    return channel;
   }
 
   /**
