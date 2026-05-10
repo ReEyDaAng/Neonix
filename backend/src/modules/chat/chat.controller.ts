@@ -19,7 +19,7 @@ import type { Request } from 'express';
 import { ChatService } from './chat.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { SendMessageDto } from './dto';
+import { CreateRoomDto, SendMessageDto } from './dto';
 
 /**
  * Controller handling chat-related endpoints for rooms, channels, and messages.
@@ -48,6 +48,24 @@ export class ChatController {
   @ApiResponse({ status: 200, description: 'Rooms fetched' })
   rooms() {
     return this.chat.listRooms();
+  }
+
+  /**
+   * Creates a new room (server) on behalf of the authenticated user.
+   *
+   * Currently any authenticated user can create rooms — owner/role
+   * semantics are out of scope for this prototype.
+   *
+   * @param dto room creation payload
+   * @returns created Room
+   */
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('rooms')
+  @ApiOperation({ summary: 'Create a new room (authenticated)' })
+  @ApiResponse({ status: 201, description: 'Room created' })
+  createRoom(@Body() dto: CreateRoomDto) {
+    return this.chat.createRoom(dto.name, dto.meta, dto.badge);
   }
 
   /**

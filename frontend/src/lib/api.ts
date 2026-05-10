@@ -166,6 +166,16 @@ export const api = {
      */
     rooms: () => http<Room[]>("/rooms"),
     /**
+     * Create a new room (server). Backend seeds a "general" text channel.
+     * @param body room creation payload
+     * @returns promise with created room
+     */
+    createRoom: (body: { name: string; meta?: string; badge?: string }) =>
+      http<Room>("/rooms", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    /**
      * Fetch channels for a specific room.
      * @param roomId room identifier
      * @returns promise with array of channels

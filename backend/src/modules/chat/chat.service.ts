@@ -154,6 +154,52 @@ export class ChatService {
    * @param userId
    * @returns created message record
    */
+  /**
+   * Create a new room (server) plus a default "general" text channel so
+   * the user has somewhere to land after joining.
+   *
+   * @param name room display name
+   * @param meta optional tagline shown under the name
+   * @param badge optional 1-3 char badge text
+   * @returns created room (with empty channels array — UI will refetch)
+   */
+  async createRoom(name: string, meta?: string, badge?: string) {
+    const trimmedName = name.trim();
+    const trimmedMeta = meta?.trim() || 'New room';
+    const trimmedBadge =
+      (badge?.trim() || trimmedName.slice(0, 2)).toUpperCase().slice(0, 3) ||
+      'NX';
+
+    const room = await this.prisma.room.create({
+      data: {
+        name: trimmedName,
+        meta: trimmedMeta,
+        badge: trimmedBadge,
+      },
+    });
+
+    // Seed a default text channel so the new room is immediately usable.
+    await this.prisma.channel.create({
+      data: { roomId: room.id, name: 'general', kind: 'TEXT' },
+    });
+
+    this.logger.log('Room created', 'ChatService', {
+      roomId: room.id,
+      name: room.name,
+    });
+
+    return room;
+  }
+
+  /**
+   *
+   * @param roomId
+   * @param channelId
+   * @param who
+   * @param text
+   * @param time
+   * @param userId
+   */
   async sendMessage(
     roomId: string,
     channelId: string,

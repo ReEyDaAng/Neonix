@@ -83,6 +83,14 @@ export default function ChatPage() {
   // mobile drawer state — controls which panel is overlaid on top on small screens
   const [mobileDrawer, setMobileDrawer] = useState<"servers" | "channels" | null>(null);
 
+  // Create-server dialog state
+  const [creatingServer, setCreatingServer] = useState(false);
+  const [newServerName, setNewServerName] = useState("");
+  const [newServerBadge, setNewServerBadge] = useState("");
+  const [newServerMeta, setNewServerMeta] = useState("");
+  const [createServerError, setCreateServerError] = useState<string | null>(null);
+  const [createServerSubmitting, setCreateServerSubmitting] = useState(false);
+
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -296,6 +304,44 @@ export default function ChatPage() {
     setMobileDrawer((d) => (d === "servers" ? "channels" : d));
   }
 
+  function openCreateServer() {
+    setNewServerName("");
+    setNewServerBadge("");
+    setNewServerMeta("");
+    setCreateServerError(null);
+    setCreatingServer(true);
+  }
+
+  async function submitCreateServer(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    const name = newServerName.trim();
+    if (name.length < 2) {
+      setCreateServerError("Name must be at least 2 characters");
+      return;
+    }
+    setCreateServerSubmitting(true);
+    setCreateServerError(null);
+    try {
+      const created = await api.chat.createRoom({
+        name,
+        meta: newServerMeta.trim() || undefined,
+        badge: newServerBadge.trim() || undefined,
+      });
+      // refresh rooms list and auto-select the new server
+      const fresh = await api.chat.rooms();
+      setRooms(fresh || []);
+      setRoomId(created.id);
+      setChannelId("");
+      setChannelsHidden(false);
+      setCreatingServer(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to create server";
+      setCreateServerError(message);
+    } finally {
+      setCreateServerSubmitting(false);
+    }
+  }
+
   function openChannel(id: string) {
     setChannelsHidden(false);
     setChannelId(id);
@@ -382,11 +428,6 @@ export default function ChatPage() {
         <aside className="panel serversBar" aria-label="Servers">
           <div className="phd">
             <b>Servers</b>
-            <button type="button" className="btn ghost phdAction" aria-label="Create or join server" title="Create / Join">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
           </div>
 
           {/* Wide list (Home + when channels hidden) */}
@@ -409,13 +450,20 @@ export default function ChatPage() {
               </button>
             ))}
 
-            <button type="button" className="srvRow" aria-label="Create or join" style={{ borderStyle: "dashed" }}>
+            <button
+              type="button"
+              className="srvRow srvRow--create"
+              aria-label="Create a new server"
+              onClick={openCreateServer}
+            >
               <div className="srvAvatar" aria-hidden="true">
-                ＋
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
               </div>
               <div className="srvText">
-                <b>Create / Join</b>
-                <span>prototype</span>
+                <b>Create server</b>
+                <span>new room + #general</span>
               </div>
             </button>
           </div>
@@ -436,6 +484,17 @@ export default function ChatPage() {
                 <span className="pill srvTip">{r.name}</span>
               </button>
             ))}
+            <button
+              type="button"
+              className="srvBtn srvBtn--create"
+              aria-label="Create a new server"
+              onClick={openCreateServer}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span className="pill srvTip">Create server</span>
+            </button>
           </div>
         </aside>
 
@@ -663,6 +722,91 @@ export default function ChatPage() {
           </div>
         </aside>
       </div>
+
+      {creatingServer && (
+        <div
+          className="modalBackdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Create a new server"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !createServerSubmitting) {
+              setCreatingServer(false);
+            }
+          }}
+        >
+          <form className="modalCard" onSubmit={submitCreateServer}>
+            <div className="modalHead">
+              <h3 className="title">Create server</h3>
+              <p className="subtitle">A room with a default <code>#general</code> channel.</p>
+            </div>
+            <div className="modalBody">
+              <div className="field">
+                <label className="label" htmlFor="cs-name">Name</label>
+                <input
+                  id="cs-name"
+                  className="input"
+                  autoFocus
+                  maxLength={60}
+                  value={newServerName}
+                  onChange={(e) => setNewServerName(e.target.value)}
+                  placeholder="Study Group"
+                  required
+                  disabled={createServerSubmitting}
+                />
+              </div>
+              <div className="row2">
+                <div className="field">
+                  <label className="label" htmlFor="cs-badge">Badge (1-3 chars)</label>
+                  <input
+                    id="cs-badge"
+                    className="input"
+                    maxLength={3}
+                    value={newServerBadge}
+                    onChange={(e) => setNewServerBadge(e.target.value)}
+                    placeholder="Auto"
+                    disabled={createServerSubmitting}
+                  />
+                </div>
+                <div className="field">
+                  <label className="label" htmlFor="cs-meta">Tagline</label>
+                  <input
+                    id="cs-meta"
+                    className="input"
+                    maxLength={80}
+                    value={newServerMeta}
+                    onChange={(e) => setNewServerMeta(e.target.value)}
+                    placeholder="Whiteboard • host tools"
+                    disabled={createServerSubmitting}
+                  />
+                </div>
+              </div>
+              {createServerError && (
+                <p className="hint" role="alert" style={{ color: "#ff7676" }}>
+                  {createServerError}
+                </p>
+              )}
+            </div>
+            <div className="modalActions">
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setCreatingServer(false)}
+                disabled={createServerSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={createServerSubmitting}
+              >
+                {createServerSubmitting ? "Creating…" : "Create"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </section>
   );
 }
