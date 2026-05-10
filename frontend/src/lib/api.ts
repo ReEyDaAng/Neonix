@@ -73,6 +73,13 @@ export interface CallStateResponse {
 
 /**
  * Custom error thrown by `http()` so callers can branch on status / kind.
+ *
+ * The constructor tries to parse the response body as a NestJS exception
+ * filter response (`{ message, statusCode, ... }`) and uses its `message`
+ * field as the user-facing `Error.message`. This way `err.message` in UI
+ * code is "Channel \"general\" already exists in this room" instead of
+ * the full JSON payload. The original raw body is still kept on
+ * `err.body` for debugging.
  */
 export class ApiError extends Error {
   status: number;
@@ -82,7 +89,24 @@ export class ApiError extends Error {
    * @param body raw response body (text)
    */
   constructor(status: number, body: string) {
-    super(`API ${status}: ${body || "(no body)"}`);
+    let friendly = body || `Request failed (${status})`;
+    if (body) {
+      try {
+        const parsed = JSON.parse(body) as
+          | { message?: string | string[] }
+          | null;
+        const msg = parsed?.message;
+        if (typeof msg === "string" && msg.length > 0) {
+          friendly = msg;
+        } else if (Array.isArray(msg) && msg.length > 0) {
+          // class-validator returns an array of validation errors
+          friendly = msg.join("; ");
+        }
+      } catch {
+        // Not JSON — fall back to the raw body.
+      }
+    }
+    super(friendly);
     this.status = status;
     this.body = body;
   }
