@@ -86,6 +86,27 @@ function screenEncoding(quality: ScreenQuality, fps: Fps) {
   return { maxBitrate: scaled, maxFramerate: fps };
 }
 
+/**
+ * Camera bitrate ladder. We are noticeably more generous than LiveKit's
+ * own h720 preset (1.7 Mbps) because most cameras cap at 720p and the
+ * limiting factor on perceived quality is encoder bitrate, not pixels.
+ * More bits per same resolution = fewer compression artefacts.
+ *
+ * @param quality requested camera height
+ * @param fps requested frame rate
+ * @returns LiveKit videoEncoding (top simulcast layer)
+ */
+function cameraEncoding(quality: CameraQuality, fps: Fps) {
+  const baseAt30: Record<CameraQuality, number> = {
+    "360p": 600_000,
+    "540p": 1_200_000,
+    "720p": 2_500_000,
+    "1080p": 4_500_000,
+  };
+  const scaled = Math.round(baseAt30[quality] * (fps / 30));
+  return { maxBitrate: scaled, maxFramerate: fps };
+}
+
 function audioPreset(quality: AudioQuality) {
   switch (quality) {
     case "speech": return AudioPresets.telephone;
@@ -128,6 +149,10 @@ function buildRoomOptions(prefs: {
     },
     publishDefaults: {
       videoCodec: "vp9",
+      // Top-layer (highest simulcast) bitrate. This is the main lever for
+      // perceived quality on cameras that cap at 720p — we trade extra
+      // upload bandwidth for noticeably fewer compression artefacts.
+      videoEncoding: cameraEncoding(prefs.cameraQuality, prefs.cameraFps),
       videoSimulcastLayers: cameraSimulcast(prefs.cameraQuality),
       screenShareEncoding: screenEncoding(prefs.screenQuality, prefs.screenFps),
       audioPreset: audioPreset(prefs.audioQuality),
