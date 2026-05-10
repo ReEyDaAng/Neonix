@@ -19,6 +19,13 @@ import "@livekit/components-styles";
 import { api, type Channel, type Room } from "@/lib/api";
 import { useAuth } from "@/state/auth";
 import { useCalls } from "@/state/calls";
+import {
+  useUiPrefs,
+  type AudioQuality,
+  type CameraQuality,
+  type Fps,
+  type ScreenQuality,
+} from "@/state/uiPrefs";
 import { CallChatOverlay } from "./CallChatOverlay";
 import { ScreenShareViewer } from "./ScreenShareViewer";
 import { CallSidePanel } from "./CallSidePanel";
@@ -27,44 +34,109 @@ const LIVEKIT_FALLBACK_URL =
   process.env.NEXT_PUBLIC_LIVEKIT_URL || "ws://localhost:7880";
 
 /**
- * High-quality publish defaults for camera, mic, and screen share.
+ * Map a {@link CameraQuality} preset to the LiveKit `VideoPreset` it
+ * corresponds to. We mutate the resolution.frameRate after picking so the
+ * user's selected fps is applied even though presets ship a default.
  *
- * - Camera: 720p @30fps with simulcast layers (540p / 216p) so SFU can
- *   downgrade automatically for participants on poor networks. VP9 codec
- *   if the browser supports it (better quality at the same bitrate).
- * - Audio: musicHighQuality preset (Opus 128 kbps stereo) plus echo
- *   cancellation + noise suppression + auto gain control.
- * - Screen share: 1080p @30fps capped at 3 Mbps so the SFU upload remains
- *   reasonable for ~30 viewers, with the `detail` content hint so the
- *   browser preserves text clarity instead of motion smoothness.
- *
- * `adaptiveStream` lets the LiveKit client dynamically pause/resume tracks
- * that are off-screen to save bandwidth; `dynacast` lets the SFU stop
- * forwarding simulcast layers nobody is consuming.
+ * @param quality picked camera quality
+ * @returns the underlying LiveKit preset object
  */
-const ROOM_OPTIONS: RoomOptions = {
-  adaptiveStream: true,
-  dynacast: true,
-  videoCaptureDefaults: {
-    resolution: VideoPresets.h720.resolution,
-  },
-  audioCaptureDefaults: {
-    autoGainControl: true,
-    echoCancellation: true,
-    noiseSuppression: true,
-  },
-  publishDefaults: {
-    videoCodec: "vp9",
-    videoSimulcastLayers: [VideoPresets.h540, VideoPresets.h216],
-    screenShareEncoding: {
-      maxBitrate: 3_000_000,
-      maxFramerate: 30,
+function cameraPreset(quality: CameraQuality) {
+  switch (quality) {
+    case "360p": return VideoPresets.h360;
+    case "540p": return VideoPresets.h540;
+    case "1080p": return VideoPresets.h1080;
+    case "720p":
+    default: return VideoPresets.h720;
+  }
+}
+
+/**
+ * Pick the simulcast ladder for the chosen top-quality. We always include
+ * a tiny layer for participants on really poor networks; the middle layers
+ * scale with the top.
+ *
+ * @param quality picked camera quality
+ * @returns array of LiveKit VideoPresets to use as simulcast layers
+ */
+function cameraSimulcast(quality: CameraQuality) {
+  switch (quality) {
+    case "360p": return [];
+    case "540p": return [VideoPresets.h216];
+    case "720p": return [VideoPresets.h540, VideoPresets.h216];
+    case "1080p": return [VideoPresets.h720, VideoPresets.h360];
+  }
+}
+
+/**
+ * Convert a screen-quality choice + fps into a `screenShareEncoding`
+ * descriptor with a sensible bitrate cap. Higher fps and resolution both
+ * scale the cap.
+ *
+ * @param quality screen-share resolution
+ * @param fps target frame rate
+ * @returns LiveKit screen-share encoding
+ */
+function screenEncoding(quality: ScreenQuality, fps: Fps) {
+  // Base bitrate per resolution at 30fps (in bps).
+  const base = quality === "720p" ? 1_500_000 : quality === "1080p" ? 3_000_000 : 5_000_000;
+  // Scale roughly linearly with fps relative to 30.
+  const scaled = Math.round(base * (fps / 30));
+  return { maxBitrate: scaled, maxFramerate: fps };
+}
+
+function audioPreset(quality: AudioQuality) {
+  switch (quality) {
+    case "speech": return AudioPresets.telephone;
+    case "studio": return AudioPresets.musicHighQualityStereo;
+    case "music":
+    default: return AudioPresets.musicHighQuality;
+  }
+}
+
+/**
+ * Build a {@link RoomOptions} object from the current user's media
+ * preferences. Recomputed on prefs change so the next room you join uses
+ * the latest values.
+ *
+ * @param prefs media-quality choices
+ * @returns ready-to-pass RoomOptions
+ */
+function buildRoomOptions(prefs: {
+  cameraQuality: CameraQuality;
+  cameraFps: Fps;
+  screenQuality: ScreenQuality;
+  screenFps: Fps;
+  audioQuality: AudioQuality;
+}): RoomOptions {
+  const camPreset = cameraPreset(prefs.cameraQuality);
+  // Override the preset's frameRate with the user's choice.
+  const captureRes = { ...camPreset.resolution, frameRate: prefs.cameraFps };
+  const isSpeech = prefs.audioQuality === "speech";
+  return {
+    adaptiveStream: true,
+    dynacast: true,
+    videoCaptureDefaults: {
+      resolution: captureRes,
     },
-    audioPreset: AudioPresets.musicHighQuality,
-    dtx: true,
-    red: true,
-  },
-};
+    audioCaptureDefaults: {
+      autoGainControl: true,
+      echoCancellation: true,
+      // Speech preset benefits most from aggressive noise suppression.
+      noiseSuppression: isSpeech ? true : true,
+    },
+    publishDefaults: {
+      videoCodec: "vp9",
+      videoSimulcastLayers: cameraSimulcast(prefs.cameraQuality),
+      screenShareEncoding: screenEncoding(prefs.screenQuality, prefs.screenFps),
+      audioPreset: audioPreset(prefs.audioQuality),
+      // DTX (silence) only makes sense with low-bitrate speech mode; in
+      // music mode it can clip transients.
+      dtx: isSpeech,
+      red: true,
+    },
+  };
+}
 
 interface CallShellProps {
   channel: Channel;
@@ -85,6 +157,15 @@ export function CallShell({ channel, room, onClose }: CallShellProps) {
   const [token, setToken] = useState<string | null>(null);
   const [serverUrl, setServerUrl] = useState<string>(LIVEKIT_FALLBACK_URL);
   const [error, setError] = useState<string | null>(null);
+
+  // Build LiveKit RoomOptions from the user's persisted media-quality
+  // preferences. Recomputed when any pref changes (next call you join
+  // will use the new values; the current call snapshots them at connect).
+  const { cameraQuality, cameraFps, screenQuality, screenFps, audioQuality } = useUiPrefs();
+  const roomOptions = useMemo(
+    () => buildRoomOptions({ cameraQuality, cameraFps, screenQuality, screenFps, audioQuality }),
+    [cameraQuality, cameraFps, screenQuality, screenFps, audioQuality],
+  );
 
   useEffect(() => {
     let alive = true;
@@ -153,7 +234,7 @@ export function CallShell({ channel, room, onClose }: CallShellProps) {
       <LiveKitRoom
         token={token}
         serverUrl={serverUrl}
-        options={ROOM_OPTIONS}
+        options={roomOptions}
         connect
         audio
         video={isVideo}
