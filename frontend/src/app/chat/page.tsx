@@ -382,8 +382,10 @@ export default function ChatPage() {
         <aside className="panel serversBar" aria-label="Servers">
           <div className="phd">
             <b>Servers</b>
-            <button type="button" className="btn" aria-label="Create or join server" title="Create / Join">
-              ＋
+            <button type="button" className="btn ghost phdAction" aria-label="Create or join server" title="Create / Join">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
             </button>
           </div>
 

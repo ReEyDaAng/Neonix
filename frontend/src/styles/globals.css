@@ -273,7 +273,27 @@ input[type="range"]::-moz-range-thumb{
   overflow:hidden;
   min-height:640px;
 }
-.phd{ padding:12px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; background: rgba(0,0,0,.10); }
+.phd{ padding:14px 14px 10px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.phd > b{ font-size:13px; letter-spacing:.04em; text-transform:uppercase; color: var(--muted); }
+.phdAction{
+  width:28px; height:28px;
+  padding:0;
+  border-radius:50%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.phdAction:hover{
+  background: color-mix(in srgb, var(--accent) calc(15% * var(--glow)), var(--card2));
+  border-color: color-mix(in srgb, var(--accent) calc(35% * var(--glow)), var(--border));
+  color: var(--text);
+}
+.phdAction svg{ display:block; }
 .pbd{ padding:12px; }
 .list{ display:flex; flex-direction:column; gap:8px; }
 .item{ padding:10px; border-radius:14px; background: rgba(255,255,255,.02); }
@@ -362,7 +382,7 @@ input[type="range"]::-moz-range-thumb{
 }
 .srvBtn:hover .srvTip{ opacity:1; }
 
-.channelsHead{ display:flex; gap:10px; padding:12px; border-bottom:1px solid var(--border); background: rgba(0,0,0,.10); align-items:center; }
+.channelsHead{ display:flex; gap:10px; padding:14px 14px 12px; align-items:center; }
 .channelsToggle{ width:34px; height:34px; border-radius:12px; padding:0; }
 .channelsIcon{ width:36px; height:36px; border-radius:14px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; }
 .channelsName{ display:flex; flex-direction:column; min-width:0; }
@@ -378,7 +398,7 @@ input[type="range"]::-moz-range-thumb{
 .chIcon{ width:26px; height:26px; border-radius:10px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color: var(--muted); }
 .chLabel{ color: var(--text); }
 
-.chatHeader{ padding:12px; border-bottom:1px solid var(--border); background: rgba(0,0,0,.10); display:flex; justify-content:space-between; gap:10px; }
+.chatHeader{ padding:14px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; gap:10px; }
 .chatTitle{ margin:0; font-size:14px; }
 .chatSub{ margin:6px 0 0; font-size:12px; color: var(--muted); }
 .chatMetaRow{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
