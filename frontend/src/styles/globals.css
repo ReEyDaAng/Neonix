@@ -296,13 +296,70 @@ input[type="range"]::-moz-range-thumb{
 .srvText b{ font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .srvText span{ font-size:11px; color: var(--muted2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-.srvBtn{ width:52px; height:52px; border-radius:18px; border:1px solid var(--border); background: rgba(255,255,255,.02); cursor:pointer; position:relative; }
-.srvBtn.active{
-  border-color: color-mix(in srgb, var(--accent) calc(55% * var(--glow)), transparent);
-  background: color-mix(in srgb, var(--accent) calc(14% * var(--glow)), transparent);
+/* Discord-style server tile: round, with a left "active" indicator pill
+ * that grows from the side instead of a glow-shadow that visually leaks
+ * out of the sidebar. */
+.srvBtn{
+  width:48px; height:48px;
+  border-radius:50%;
+  border:1px solid var(--border);
+  background: var(--card);
+  cursor:pointer;
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:800;
+  font-size:13px;
+  color: var(--text);
+  flex-shrink:0;
+  transition: border-radius .18s ease, background-color .18s ease, transform .12s ease;
 }
-.srvBadge{ font-weight:800; }
-.srvTip{ position:absolute; left:64px; top:50%; transform: translateY(-50%); opacity:0; pointer-events:none; }
+.srvBtn:hover{
+  border-radius:18px;
+  background: var(--card2);
+}
+.srvBtn.active{
+  border-radius:18px;
+  background: color-mix(in srgb, var(--accent) calc(18% * var(--glow)), var(--card2));
+  border-color: color-mix(in srgb, var(--accent) calc(50% * var(--glow)), var(--border));
+  color: var(--text);
+}
+/* Left "active" pill — placed inside the button (left:0) so the panel's
+ * overflow:hidden doesn't clip it. Visible only on hover/active. */
+.srvBtn::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:50%;
+  width:4px;
+  height:8px;
+  border-radius:0 4px 4px 0;
+  background: var(--accent);
+  transform: translateY(-50%) scaleY(0);
+  transform-origin: center;
+  transition: transform .18s ease, height .18s ease;
+  pointer-events:none;
+}
+.srvBtn:hover::before{ transform: translateY(-50%) scaleY(1); height:18px; }
+.srvBtn.active::before{ transform: translateY(-50%) scaleY(1); height:28px; }
+
+.srvBadge{ font-weight:800; pointer-events:none; }
+
+/* Tooltip on hover — shown to the right, but hidden by default. The
+ * sidebar uses overflow:hidden on the panel wrapper so the tooltip is
+ * absolutely positioned and only painted on hover. */
+.srvTip{
+  position:absolute;
+  left:calc(100% + 14px);
+  top:50%;
+  transform: translateY(-50%);
+  opacity:0;
+  pointer-events:none;
+  white-space:nowrap;
+  z-index:5;
+  transition: opacity .12s ease;
+}
 .srvBtn:hover .srvTip{ opacity:1; }
 
 .channelsHead{ display:flex; gap:10px; padding:12px; border-bottom:1px solid var(--border); background: rgba(0,0,0,.10); align-items:center; }
