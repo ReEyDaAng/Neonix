@@ -102,11 +102,14 @@ export function UiPrefsProvider({ children }: { children: React.ReactNode }) {
     return isLang(l) ? l : "auto";
   });
 
-  // Media-quality state — defaults match the previous hard-coded ROOM_OPTIONS.
+  // Media-quality state.
+  // Default camera = 1080p (FullHD) — most laptop/USB webcams can deliver
+  // it; Chrome will silently fall back to whatever native max the camera
+  // supports if 1080p is not available.
   const [cameraQuality, setCameraQuality] = useState<CameraQuality>(() => {
-    if (typeof window === "undefined") return "720p";
+    if (typeof window === "undefined") return "1080p";
     const v = localStorage.getItem("nx_camera_quality");
-    return isCameraQuality(v) ? v : "720p";
+    return isCameraQuality(v) ? v : "1080p";
   });
   const [cameraFps, setCameraFps] = useState<Fps>(() => {
     if (typeof window === "undefined") return 30;
@@ -164,7 +167,7 @@ export function UiPrefsProvider({ children }: { children: React.ReactNode }) {
     toggleLangQuick: () => setLang(prev => (prev === "uk" ? "en" : "uk")),
     reset: () => {
       setTheme("dark"); setAccent("cyan"); setGlow(45); setLang("auto");
-      setCameraQuality("720p"); setCameraFps(30);
+      setCameraQuality("1080p"); setCameraFps(30);
       setScreenQuality("1080p"); setScreenFps(30);
       setAudioQuality("music");
     },

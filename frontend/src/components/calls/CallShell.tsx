@@ -7,6 +7,7 @@ import {
   LiveKitRoom,
   ParticipantTile,
   RoomAudioRenderer,
+  useLocalParticipant,
   useTracks,
 } from "@livekit/components-react";
 import {
@@ -303,9 +304,12 @@ function CallShellInner({
             </span>
           </div>
         </div>
-        <button type="button" className="btn" onClick={onLeave} aria-label="Leave call">
-          Leave
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <LocalQualityPill />
+          <button type="button" className="btn" onClick={onLeave} aria-label="Leave call">
+            Leave
+          </button>
+        </div>
       </header>
 
       <div className="callShell__main">
@@ -354,5 +358,83 @@ export function ActiveCallOverlay() {
       room={activeCall.room ?? null}
       onClose={endCall}
     />
+  );
+}
+
+/**
+ * Tiny pill in the call header that displays the current camera track's
+ * actual capture resolution + frame rate + codec — sourced from
+ * `MediaStreamTrack.getSettings()` so it reflects what the browser is
+ * really delivering, not just what was requested.
+ *
+ * Helps users / reviewers verify that "1080p 30fps VP9" actually applied
+ * — Chrome silently downgrades when a camera does not support a preset.
+ *
+ * @returns pill element or null when there is no local camera track
+ */
+function LocalQualityPill() {
+  const { localParticipant } = useLocalParticipant();
+  const [info, setInfo] = useState<{
+    width: number;
+    height: number;
+    frameRate: number;
+    codec: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!localParticipant) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const tick = () => {
+      const pub = localParticipant.getTrackPublication(Track.Source.Camera);
+      const mst = pub?.track?.mediaStreamTrack;
+      if (!mst) {
+        if (!cancelled) setInfo(null);
+        return;
+      }
+      const s = mst.getSettings();
+      const codec = pub.mimeType?.split("/")[1]?.toUpperCase() || "VP8";
+      if (
+        typeof s.width === "number" &&
+        typeof s.height === "number"
+      ) {
+        if (!cancelled) {
+          setInfo({
+            width: s.width,
+            height: s.height,
+            frameRate: Math.round(s.frameRate ?? 30),
+            codec,
+          });
+        }
+      }
+    };
+
+    tick();
+    timer = setInterval(tick, 2000);
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [localParticipant]);
+
+  if (!info) return null;
+
+  // Show a friendly label like "1080p · 30 fps · VP9" instead of raw px.
+  const heightLabel =
+    info.height >= 1080 ? "1080p" :
+    info.height >= 720 ? "720p" :
+    info.height >= 540 ? "540p" :
+    info.height >= 360 ? "360p" :
+    `${info.height}p`;
+
+  return (
+    <span
+      className="pill"
+      title={`Capture: ${info.width}×${info.height} @ ${info.frameRate} fps · codec ${info.codec}`}
+    >
+      <span className="dotMini" aria-hidden="true" />
+      {heightLabel} · {info.frameRate} fps
+    </span>
   );
 }
