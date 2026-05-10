@@ -1,5 +1,6 @@
 import "../styles/globals.css";
 import "../styles/calls.css";
+import "../styles/responsive.css";
 import { AppShell } from "../app/components/AppShell";
 import { UiPrefsProvider } from "../state/uiPrefs";
 import { AuthProvider } from "../state/auth";

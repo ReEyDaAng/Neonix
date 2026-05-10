@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 export type User = { id: string; email: string; displayName: string; username: string };
 
@@ -15,6 +15,14 @@ type AuthCtx = {
 
 const Ctx = createContext<AuthCtx | null>(null);
 
+/**
+ * Provider that owns the user / token state, mirrors it to localStorage,
+ * and listens for global signals (`nx:unauthorized` on 401, `storage` events
+ * from other tabs) to drop the session safely.
+ *
+ * @param props children
+ * @returns provider element
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ВАЖЛИВО: перший рендер і на сервері, і на клієнті буде однаковий (null)
   const [token, setToken] = useState<string | null>(null);
@@ -36,6 +44,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const signOut = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    try {
+      localStorage.removeItem("nx_token");
+      localStorage.removeItem("nx_user");
+    } catch {}
+    if (typeof window !== "undefined") {
+      // Lets feature consumers (sockets, livekit) tear down their connections.
+      window.dispatchEvent(new CustomEvent("nx:signedOut"));
+    }
+  }, []);
+
+  // Cross-tab sync — if user signs out (or is signed out by 401) in another
+  // tab, this tab should follow.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "nx_token" && !e.newValue) {
+        setToken(null);
+        setUser(null);
+        window.dispatchEvent(new CustomEvent("nx:signedOut"));
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // Auto signOut on 401 from any HTTP call (emitted by `api.ts`).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onUnauthorized = () => {
+      // Avoid loops if we're already signed out.
+      if (token || user) signOut();
+    };
+    window.addEventListener("nx:unauthorized", onUnauthorized);
+    return () =>
+      window.removeEventListener("nx:unauthorized", onUnauthorized);
+  }, [token, user, signOut]);
+
   const value = useMemo<AuthCtx>(
     () => ({
       token,
@@ -49,21 +97,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("nx_user", JSON.stringify(u));
         } catch {}
       },
-      signOut: () => {
-        setToken(null);
-        setUser(null);
-        try {
-          localStorage.removeItem("nx_token");
-          localStorage.removeItem("nx_user");
-        } catch {}
-      },
+      signOut,
     }),
-    [token, user, ready]
+    [token, user, ready, signOut]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
+/**
+ * Hook that reads auth state. Must be used inside `<AuthProvider>`.
+ *
+ * @returns auth context
+ */
 export function useAuth() {
   const v = useContext(Ctx);
   if (!v) throw new Error("AuthProvider missing");

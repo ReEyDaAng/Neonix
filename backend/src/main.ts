@@ -51,7 +51,7 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(new HttpTimingInterceptor());
+  app.useGlobalInterceptors(new HttpTimingInterceptor(logger));
 
   app.useGlobalFilters(new AllExceptionsFilter(logger));
 
@@ -64,7 +64,22 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  const corsOrigin = process.env.CORS_ORIGIN?.split(',') ?? true;
+  // CORS — never default to `true` (allow-all). In production we require an
+  // explicit comma-separated origin list; in dev we allow localhost.
+  const corsOriginRaw = process.env.CORS_ORIGIN?.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  if (!corsOriginRaw || corsOriginRaw.length === 0) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'CORS_ORIGIN must be set to an explicit comma-separated origin list in production',
+      );
+    }
+  }
+  const corsOrigin =
+    corsOriginRaw && corsOriginRaw.length > 0
+      ? corsOriginRaw
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'];
   app.enableCors({
     origin: corsOrigin,
     credentials: true,

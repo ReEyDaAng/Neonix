@@ -37,15 +37,13 @@ services:
     network_mode: host
     env_file: ./.env.backend
     # turnserver.conf placeholders are substituted at start-up via envsubst.
-    entrypoint:
-      - /bin/sh
+    command:
+      - turnserver
       - -c
-      - >
-        apk add --no-cache gettext &&
-        envsubst < /tmp/turnserver.conf.tpl > /etc/coturn/turnserver.conf &&
-        exec turnserver -c /etc/coturn/turnserver.conf -n
+      - /etc/coturn/turnserver.conf
+      - -n
     volumes:
-      - ./infra/coturn/turnserver.conf:/tmp/turnserver.conf.tpl:ro
+      - ./infra/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
 
   backend:

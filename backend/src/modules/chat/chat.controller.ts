@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
-  ApiBody,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -20,6 +19,7 @@ import type { Request } from 'express';
 import { ChatService } from './chat.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { SendMessageDto } from './dto';
 
 /**
  * Controller handling chat-related endpoints for rooms, channels, and messages.
@@ -41,8 +41,10 @@ export class ChatController {
    * Retrieves list of all chat rooms.
    * @returns Array of room objects
    */
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('rooms')
-  @ApiOperation({ summary: 'Get list of rooms' })
+  @ApiOperation({ summary: 'Get list of rooms (authenticated)' })
   @ApiResponse({ status: 200, description: 'Rooms fetched' })
   rooms() {
     return this.chat.listRooms();
@@ -53,8 +55,10 @@ export class ChatController {
    * @param roomId Room identifier
    * @returns Array of channel objects
    */
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('rooms/:roomId/channels')
-  @ApiOperation({ summary: 'Get list of channels in a room' })
+  @ApiOperation({ summary: 'Get list of channels in a room (authenticated)' })
   @ApiResponse({ status: 200, description: 'Channels fetched' })
   channels(@Param('roomId') roomId: string) {
     return this.chat.listChannels(roomId);
@@ -64,18 +68,24 @@ export class ChatController {
    * Retrieves messages in a specific channel.
    * @param roomId Room identifier
    * @param channelId Channel identifier
-   * @param limit Optional limit for pagination (default 50)
+   * @param limit Optional limit (clamped to 1-200, default 50)
    * @returns Array of message objects
    */
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('rooms/:roomId/channels/:channelId/messages')
-  @ApiOperation({ summary: 'Get messages in a channel' })
+  @ApiOperation({ summary: 'Get messages in a channel (authenticated)' })
   @ApiResponse({ status: 200, description: 'Messages fetched' })
   messages(
     @Param('roomId') roomId: string,
     @Param('channelId') channelId: string,
     @Query('limit') limit?: string,
   ) {
-    const limitNum = limit ? parseInt(limit, 10) : 50;
+    const parsed = limit ? parseInt(limit, 10) : 50;
+    const limitNum = Math.min(
+      Math.max(Number.isFinite(parsed) ? parsed : 50, 1),
+      200,
+    );
     return this.chat.listMessages(roomId, channelId, limitNum);
   }
 
@@ -98,20 +108,10 @@ export class ChatController {
   @Post('rooms/:roomId/channels/:channelId/messages')
   @ApiOperation({ summary: 'Send a message to a channel (authenticated)' })
   @ApiResponse({ status: 201, description: 'Message sent' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        text: { type: 'string', example: 'Hello from API' },
-        time: { type: 'string', example: '13:01' },
-      },
-      required: ['text'],
-    },
-  })
   async send(
     @Param('roomId') roomId: string,
     @Param('channelId') channelId: string,
-    @Body() body: { text: string; time?: string },
+    @Body() body: SendMessageDto,
     @Req() req: Request,
   ) {
     const userId = req.user?.id;

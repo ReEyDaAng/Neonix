@@ -8,12 +8,25 @@ export interface NeonixJwtPayload {
 }
 
 /**
- * Resolve the JWT secret from environment with a documented fallback.
+ * Resolve the JWT secret from environment.
+ *
+ * In production we **fail loudly** if `JWT_SECRET` is missing — silently using
+ * a development default would let attackers forge tokens.
  *
  * @returns secret string used to sign and verify Neonix JWTs
+ * @throws Error in production when `JWT_SECRET` is unset
  */
 export function getJwtSecret(): string {
-  return process.env.JWT_SECRET || 'dev_secret_change_me';
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 16) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'JWT_SECRET must be set to a strong value (>=16 chars) in production',
+      );
+    }
+    return secret || 'dev_secret_change_me';
+  }
+  return secret;
 }
 
 /**

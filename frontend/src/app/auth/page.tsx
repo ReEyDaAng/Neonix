@@ -11,11 +11,13 @@ export default function AuthPage() {
   const router = useRouter();
   const { setSession } = useAuth();
 
+  const isDev = process.env.NODE_ENV !== "production";
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("demo@neonix.app");
-  const [pass, setPass] = useState("Password123!");
+  // Pre-fill demo credentials only in development; production starts empty.
+  const [email, setEmail] = useState(isDev ? "demo@neonix.app" : "");
+  const [pass, setPass] = useState(isDev ? "Password123!" : "");
   const [confirm, setConfirm] = useState("");
-  const [displayName, setDisplayName] = useState("Demo User");
+  const [displayName, setDisplayName] = useState(isDev ? "Demo User" : "");
   const [loading, setLoading] = useState(false);
 
   async function submit() {

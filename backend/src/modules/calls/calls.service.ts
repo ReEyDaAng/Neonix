@@ -226,17 +226,23 @@ export class CallsService {
     if (!session) {
       throw new NotFoundException('Active call not found for this channel');
     }
-    // First grant: anyone in the room can claim it.
-    if (session.presenterUserId && session.presenterUserId !== callerUserId) {
+
+    // Atomic conditional update — only succeeds if the presenter is currently
+    // null (first claim) OR equal to the caller (transfer). This closes the
+    // race where two simultaneous grants could both pass an in-memory check.
+    const updated = await this.prisma.callSession.updateMany({
+      where: {
+        id: session.id,
+        OR: [{ presenterUserId: null }, { presenterUserId: callerUserId }],
+      },
+      data: { presenterUserId: targetUserId },
+    });
+
+    if (updated.count === 0) {
       throw new ForbiddenException(
         'Only the current presenter can transfer control',
       );
     }
-
-    await this.prisma.callSession.update({
-      where: { id: session.id },
-      data: { presenterUserId: targetUserId },
-    });
 
     if (this.roomService) {
       try {
@@ -278,11 +284,28 @@ export class CallsService {
     userId: string | null,
     payload: Record<string, unknown>,
   ) {
+    // Bound payload size — guards against single-request DoS and unbounded
+    // database growth. 256 KB is generous for thousands of stroke deltas.
+    const serialized = JSON.stringify(payload);
+    if (serialized.length > 256 * 1024) {
+      throw new BadRequestException(
+        'Annotation payload too large (max 256 KB)',
+      );
+    }
+
     const channel = await this.prisma.channel.findUnique({
       where: { id: channelId },
     });
     if (!channel) {
       throw new NotFoundException('Channel not found');
+    }
+
+    // Require an active call session — only call participants should write.
+    const session = await this.prisma.callSession.findFirst({
+      where: { channelId, livekitRoom: `ch_${channelId}`, endedAt: null },
+    });
+    if (!session) {
+      throw new NotFoundException('No active call for this channel');
     }
 
     const created = await this.prisma.annotation.create({

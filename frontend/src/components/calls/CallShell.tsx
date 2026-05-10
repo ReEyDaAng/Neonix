@@ -40,23 +40,39 @@ export function CallShell({ channel, onClose }: CallShellProps) {
 
   useEffect(() => {
     let alive = true;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-    api.calls
-      .token(channel.id)
-      .then((res) => {
-        if (!alive) return;
-        setToken(res.token);
-        setServerUrl(res.url || LIVEKIT_FALLBACK_URL);
-        setError(null);
-      })
-      .catch((e: unknown) => {
-        if (!alive) return;
-        const message = e instanceof Error ? e.message : "Failed to fetch token";
-        setError(message);
-      });
+    const fetchToken = () => {
+      api.calls
+        .token(channel.id)
+        .then((res) => {
+          if (!alive) return;
+          setToken(res.token);
+          setServerUrl(res.url || LIVEKIT_FALLBACK_URL);
+          setError(null);
+
+          // LiveKit tokens are minted with a 1h TTL. Refresh ~5 min before
+          // expiry so calls longer than an hour don't disconnect.
+          const expiresInMs = Math.max(
+            (res.expiresAt - Math.floor(Date.now() / 1000)) * 1000,
+            60_000,
+          );
+          const refreshIn = Math.max(expiresInMs - 5 * 60_000, 60_000);
+          refreshTimer = setTimeout(fetchToken, refreshIn);
+        })
+        .catch((e: unknown) => {
+          if (!alive) return;
+          const message =
+            e instanceof Error ? e.message : "Failed to fetch token";
+          setError(message);
+        });
+    };
+
+    fetchToken();
 
     return () => {
       alive = false;
+      if (refreshTimer) clearTimeout(refreshTimer);
     };
   }, [channel.id]);
 

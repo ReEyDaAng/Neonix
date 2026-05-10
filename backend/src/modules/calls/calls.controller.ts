@@ -15,6 +15,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CallsService } from './calls.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -44,9 +45,11 @@ export class CallsController {
    * @param req authenticated request
    * @returns LiveKit token + connection info
    */
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('token')
   @ApiOperation({ summary: 'Issue a LiveKit access token for a channel' })
   @ApiResponse({ status: 201, description: 'Token issued' })
+  @ApiResponse({ status: 429, description: 'Too many token requests' })
   @ApiBody({ type: IssueTokenDto })
   token(@Body() dto: IssueTokenDto, @Req() req: Request) {
     const userId = this.requireUserId(req);

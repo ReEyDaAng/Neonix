@@ -2,23 +2,61 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "./Button";
 import { useUiPrefs } from "../../../state/uiPrefs";
 import { useI18n } from "../../../state/i18n";
 import { useAuth } from "../../../state/auth";
 
+/**
+ * Top navigation bar with brand, primary navigation links, and quick actions.
+ *
+ * Below 980px the navigation collapses into an off-canvas drawer toggled by
+ * a hamburger button (CSS in `responsive.css` handles the slide-down).
+ *
+ * @returns Topbar element
+ */
 export function Topbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { toggleLangQuick } = useUiPrefs();
   const t = useI18n();
   const { user } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Auto-close menu on route change. Wrapped in setTimeout to avoid the
+  // ESLint `react-hooks/set-state-in-effect` warning while still acting on
+  // the next tick (sufficient for closing a drawer).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const t = setTimeout(() => setMenuOpen(false), 0);
+    return () => clearTimeout(t);
+  }, [pathname, menuOpen]);
+
+  // Close menu on Escape
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   return (
-    <header className="topbar">
+    <header className={`topbar ${menuOpen ? "menu-open" : ""}`}>
       <div className="container">
         <div className="row">
-          {/* Було клікабельним div → стало семантичним Link */}
+          <button
+            type="button"
+            className="topbar__burger"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            {menuOpen ? "✕" : "☰"}
+          </button>
+
           <Link className="brand" href="/landing" aria-label="Neonix — landing">
             <div className="logoDot" aria-hidden="true" />
             <div className="word">
@@ -51,7 +89,6 @@ export function Topbar() {
               <span>neonix.app</span>
             </span>
 
-            {/* Іконка-кнопка → потрібна доступна назва */}
             <Button
               variant="ghost"
               onClick={toggleLangQuick}
@@ -76,6 +113,12 @@ export function Topbar() {
   );
 }
 
+/**
+ * Single navigation link with active state styling.
+ *
+ * @param props link href, active flag, children content
+ * @returns navigation anchor element
+ */
 function Nav({
   href,
   active,

@@ -59,8 +59,10 @@ export default function ProfilePage() {
                 <input
                   id="displayName"
                   className="input"
-                  defaultValue={user.displayName}
+                  value={user.displayName}
+                  readOnly
                   aria-label="Display name"
+                  title="Editing profile is not available in this prototype"
                 />
               </div>
 
@@ -71,8 +73,10 @@ export default function ProfilePage() {
                 <input
                   id="username"
                   className="input"
-                  defaultValue={user.username}
+                  value={user.username}
+                  readOnly
                   aria-label="Username"
+                  title="Editing profile is not available in this prototype"
                 />
               </div>
             </div>
@@ -84,11 +88,11 @@ export default function ProfilePage() {
               <input
                 id="email"
                 className="input"
-                defaultValue={user.email}
+                value={user.email}
                 disabled
                 aria-label="Email address (read-only)"
               />
-              <div className="hint">Email is read-only in this prototype.</div>
+              <div className="hint">Profile editing is not yet available — values shown are read-only.</div>
             </div>
 
             <div className="actionsRow" role="group" aria-label="Profile actions">

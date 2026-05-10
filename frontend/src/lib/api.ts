@@ -71,6 +71,23 @@ export interface CallStateResponse {
   participantsCount: number;
 }
 
+/**
+ * Custom error thrown by `http()` so callers can branch on status / kind.
+ */
+export class ApiError extends Error {
+  status: number;
+  body: string;
+  /**
+   * @param status HTTP status code
+   * @param body raw response body (text)
+   */
+  constructor(status: number, body: string) {
+    super(`API ${status}: ${body || "(no body)"}`);
+    this.status = status;
+    this.body = body;
+  }
+}
+
 function readToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -78,6 +95,14 @@ function readToken(): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Fired when any HTTP request returns 401 — let `auth.tsx` listen and signOut.
+ */
+function emitUnauthorized() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("nx:unauthorized"));
 }
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
@@ -91,7 +116,13 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   const res = await fetch(API_URL + path, { ...init, headers });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    if (res.status === 401) {
+      emitUnauthorized();
+    }
+    throw new ApiError(res.status, body);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -184,5 +215,31 @@ export const api = {
      */
     state: (channelId: string) =>
       http<CallStateResponse>(`/calls/${channelId}/state`),
+    /**
+     * Fetch the latest annotation snapshot.
+     * @param channelId channel identifier
+     * @returns latest snapshot row or null
+     */
+    annotations: (channelId: string) =>
+      http<{ payload?: { strokes?: unknown[]; version?: number } } | null>(
+        `/calls/${channelId}/annotations`,
+      ),
+    /**
+     * Persist an annotation snapshot.
+     * @param channelId channel identifier
+     * @param payload opaque snapshot
+     * @returns id and createdAt
+     */
+    saveAnnotation: (
+      channelId: string,
+      payload: Record<string, unknown>,
+    ) =>
+      http<{ id: string; createdAt: string }>(
+        `/calls/${channelId}/annotations`,
+        {
+          method: "POST",
+          body: JSON.stringify({ payload }),
+        },
+      ),
   },
 };

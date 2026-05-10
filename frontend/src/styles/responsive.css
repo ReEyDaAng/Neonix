@@ -1,0 +1,463 @@
+/*
+ * Responsive overrides — loaded LAST so cascade wins over base globals.css.
+ *
+ * Breakpoints (mobile-first thinking, but desktop-baseline overrides):
+ *   ≥1280  full 4-column chat shell + right column
+ *   1024–1279  right column hidden
+ *   768–1023  servers icon-only + channels drawer trigger
+ *   ≤767    fully mobile: drawer pattern, hamburger menu, single-column pages
+ *
+ * Touch targets: minimum 40×40 below 1024px, 44×44 below 768.
+ */
+
+/* ===========================================================
+ * 1. Topbar — mobile hamburger menu (replaces display:none nav)
+ * =========================================================== */
+
+.topbar__burger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 980px) {
+  .topbar .row {
+    gap: 8px;
+  }
+
+  .topbar__burger {
+    display: inline-flex;
+  }
+
+  /* Override globals.css `.nav { display: none }` — reposition as off-canvas drawer */
+  .nav {
+    display: flex !important;
+    position: fixed;
+    inset: var(--topbar) 0 0 0;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px;
+    background: linear-gradient(180deg, rgba(11, 15, 20, 0.97), rgba(11, 15, 20, 0.92));
+    backdrop-filter: blur(18px);
+    border-top: 1px solid var(--border);
+    transform: translateY(-110%);
+    transition: transform 0.22s ease;
+    z-index: 49;
+    overflow-y: auto;
+  }
+
+  .topbar.menu-open .nav {
+    transform: translateY(0);
+  }
+
+  .navLink {
+    font-size: 15px;
+    padding: 12px 14px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Pill ("neonix.app") + secondary buttons hide on small to avoid wrap chaos */
+  .actions > .pill {
+    display: none;
+  }
+
+  .actions > .btn {
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 540px) {
+  /* Brand subline takes too much width — drop it */
+  .brand .sub {
+    display: none;
+  }
+
+  .actions > a.btn.primary {
+    /* keep primary CTA; collapse text */
+    padding: 8px 12px;
+  }
+
+  /* Settings cog button can drop label on tiniest screens */
+  .actions > button.btn[title="Language"]::after,
+  .actions > button.btn:not(.primary) {
+    font-size: 13px;
+  }
+}
+
+/* ===========================================================
+ * 2. Page typography — scale headlines for small screens
+ * =========================================================== */
+
+@media (max-width: 720px) {
+  .heroLeft h1 {
+    font-size: 26px;
+    letter-spacing: -0.01em;
+  }
+  .title {
+    font-size: 19px;
+  }
+  .page {
+    padding: 14px 0 40px;
+  }
+  .container {
+    padding: 0 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .heroLeft h1 {
+    font-size: 22px;
+  }
+  .markCard {
+    width: 100%;
+  }
+}
+
+/* ===========================================================
+ * 3. Auth / Profile / Settings cards — better mobile flow
+ * =========================================================== */
+
+@media (max-width: 720px) {
+  .grid2 {
+    gap: 12px;
+  }
+  .card .hd {
+    padding: 14px 14px 0;
+    flex-wrap: wrap;
+  }
+  .card .bd {
+    padding: 14px;
+  }
+  .actionsRow .btn,
+  .actionsRow a.btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+  }
+  .seg .segBtn {
+    flex: 1 1 0;
+    min-height: 40px;
+  }
+  /* Tabs row should fit one line */
+  .tabs {
+    flex-wrap: wrap;
+  }
+}
+
+/* ===========================================================
+ * 4. Chat shell — mobile drawer pattern
+ *
+ * Strategy: under 860px, switch from grid to single-pane main view.
+ * Servers/Channels panels become off-canvas drawers, toggled by
+ * `data-mobile-drawer="servers"|"channels"` attribute on `.shell`.
+ * =========================================================== */
+
+@media (max-width: 1160px) {
+  /* Inherit from globals: right column hides; keep override here so drawer works */
+  .shell {
+    grid-template-columns: var(--srv-wide) 1fr;
+  }
+  .rightCol {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .chatPage {
+    padding: 0;
+  }
+
+  /* Single-pane layout — only main panel is visible by default */
+  .shell,
+  .shell.state-server,
+  .shell.state-channel,
+  .shell.state-server.channels-hidden,
+  .shell.state-channel.channels-hidden {
+    grid-template-columns: 1fr;
+    gap: 0;
+    min-height: calc(100dvh - var(--topbar) - 60px);
+  }
+
+  /* Override the globals rule that fully hides them — we want them as drawers */
+  .serversBar,
+  .channelsBar {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    top: var(--topbar);
+    bottom: 0;
+    width: min(86vw, 320px);
+    z-index: 60;
+    background: linear-gradient(180deg, rgba(11, 15, 20, 0.97), rgba(11, 15, 20, 0.92));
+    backdrop-filter: blur(18px);
+    border: 1px solid var(--border);
+    border-radius: 0 var(--radius2) var(--radius2) 0;
+    box-shadow: var(--shadow);
+    transform: translateX(-110%);
+    transition: transform 0.22s ease;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  .serversBar {
+    left: 0;
+  }
+
+  .channelsBar {
+    /* Channels drawer slides in from the same side, layered above servers */
+    left: 0;
+    z-index: 61;
+  }
+
+  .shell[data-mobile-drawer="servers"] .serversBar,
+  .shell[data-mobile-drawer="channels"] .channelsBar {
+    transform: translateX(0);
+  }
+
+  /* Backdrop */
+  .shell[data-mobile-drawer="servers"]::before,
+  .shell[data-mobile-drawer="channels"]::before {
+    content: "";
+    position: fixed;
+    inset: var(--topbar) 0 0 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 59;
+    backdrop-filter: blur(2px);
+  }
+
+  /* Right column stays hidden on mobile */
+  .rightCol {
+    display: none !important;
+  }
+
+  /* Shrink server tiles in icon mode for thumbs */
+  .srvBtn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .panel {
+    min-height: 0;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .chatArea {
+    /* Replace fixed 420px with full available height */
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 240px;
+  }
+
+  /* Chat header: stack title + actions cleanly */
+  .chatHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+  }
+  .chatHeader > div:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .chatTitle {
+    font-size: 14px;
+  }
+  .chatSub {
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  .chatMetaRow .btn {
+    padding: 6px 9px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  /* Composer — keep input wide, button compact */
+  .composer {
+    padding: 10px;
+    gap: 6px;
+  }
+  .composer input {
+    padding: 10px;
+    font-size: 14px;
+    /* Prevents iOS zoom on focus */
+    line-height: 1.3;
+  }
+  .composer .btn {
+    padding: 10px 14px;
+  }
+
+  .msg {
+    max-width: 88%;
+    font-size: 13px;
+  }
+
+  /* Channel rows — bigger touch target */
+  .chItem {
+    padding: 12px 10px;
+    min-height: 44px;
+  }
+  .chJoin {
+    padding: 8px 14px;
+  }
+}
+
+/* The mobile drawer toggle button — only visible at the same breakpoint */
+.chat-mobile-toggle {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .chat-mobile-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    cursor: pointer;
+  }
+}
+
+/* Hide the panel chrome inside drawers to maximize content */
+@media (max-width: 860px) {
+  .serversBar .phd,
+  .channelsBar .channelsHead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+}
+
+/* ===========================================================
+ * 5. Settings — slider row stays on one line
+ * =========================================================== */
+
+@media (max-width: 540px) {
+  .sliderRow {
+    flex-wrap: nowrap;
+  }
+  .sliderRow .pill {
+    min-width: 52px;
+    justify-content: center;
+  }
+}
+
+/* ===========================================================
+ * 6. Calls overlay — refine mobile (extra tweaks beyond calls.css)
+ * =========================================================== */
+
+@media (max-width: 720px) {
+  .callShell__header {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .callShell__title b {
+    font-size: 14px;
+  }
+  .callShell__sub {
+    font-size: 11px;
+  }
+  .callShell__main {
+    padding: 8px 10px;
+    grid-template-columns: 1fr;
+  }
+  .callSide {
+    display: none;
+  }
+  .callShell__layout.with-screen .callSide {
+    /* When screen-share is active on mobile, panel becomes a drawer too */
+    display: none;
+  }
+  .callChat {
+    right: 8px;
+    left: 8px;
+    bottom: 92px;
+    width: auto;
+    max-height: 38vh;
+  }
+  .annotationToolbar {
+    flex-wrap: wrap;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    padding: 6px;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .annotationToolbar input[type="range"] {
+    width: 60px;
+  }
+}
+
+@media (max-width: 480px) {
+  .callShell .lk-control-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 6px;
+  }
+  .callShell .lk-button {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
+
+/* ===========================================================
+ * 7. Generic safety nets for very narrow / portrait screens
+ * =========================================================== */
+
+@media (max-width: 360px) {
+  :root {
+    --gap: 8px;
+    --radius2: 18px;
+  }
+  .container {
+    padding: 0 10px;
+  }
+  .btn {
+    padding: 9px 11px;
+    font-size: 12.5px;
+  }
+}
+
+/* Prevent page-level horizontal scroll caused by negative margins / wide elements */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Respect device safe areas (iOS notch, Android nav) */
+.topbar,
+.callShell__header {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.callShell__controls {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Reduced motion: kill drawer transitions for users who request it */
+@media (prefers-reduced-motion: reduce) {
+  .nav,
+  .serversBar,
+  .channelsBar,
+  .callSide__burst {
+    transition: none;
+    animation: none;
+  }
+}

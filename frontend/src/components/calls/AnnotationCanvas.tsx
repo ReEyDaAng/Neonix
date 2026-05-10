@@ -44,27 +44,19 @@ export function AnnotationCanvas({ channelId }: AnnotationCanvasProps) {
   const { send } = useDataChannel("annotations");
   const { localParticipant } = useLocalParticipant();
 
-  // Initial snapshot for late joiners
+  // Initial snapshot for late joiners — use shared api helper so 401 is
+  // handled centrally (signs the user out instead of failing silently).
   useEffect(() => {
     let alive = true;
     api.calls
-      .state(channelId)
-      .catch(() => null)
-      .finally(() => {
+      .annotations(channelId)
+      .then((row) => {
         if (!alive) return;
-        // separate REST hop for the latest persisted snapshot
-        fetch(
-          `${process.env.NEXT_PUBLIC_API_URL ?? ""}/calls/${channelId}/annotations`,
-          { headers: { Authorization: `Bearer ${localStorage.getItem("nx_token") ?? ""}` } },
-        )
-          .then((r) => (r.ok ? r.json() : null))
-          .then((row: { payload?: { strokes?: Stroke[] } } | null) => {
-            if (!alive) return;
-            if (row?.payload?.strokes && Array.isArray(row.payload.strokes)) {
-              setStrokes(row.payload.strokes);
-            }
-          })
-          .catch(() => {});
+        const strokes = (row?.payload?.strokes ?? []) as Stroke[];
+        if (Array.isArray(strokes)) setStrokes(strokes);
+      })
+      .catch(() => {
+        // Silent — annotation snapshot is best-effort.
       });
     return () => {
       alive = false;
@@ -98,21 +90,14 @@ export function AnnotationCanvas({ channelId }: AnnotationCanvasProps) {
     [send],
   );
 
-  // Persist snapshot every 4s (debounced) when strokes change
+  // Persist snapshot every 4s (debounced) when strokes change — via shared
+  // api helper so 401 is centrally handled.
   useEffect(() => {
     if (strokes.length === 0) return;
     const handle = window.setTimeout(() => {
-      void fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? ""}/calls/${channelId}/annotations`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("nx_token") ?? ""}`,
-          },
-          body: JSON.stringify({ payload: { strokes, version: 1 } }),
-        },
-      ).catch(() => {});
+      void api.calls
+        .saveAnnotation(channelId, { strokes, version: 1 })
+        .catch(() => {});
     }, 4000);
     return () => window.clearTimeout(handle);
   }, [strokes, channelId]);
@@ -174,6 +159,10 @@ export function AnnotationCanvas({ channelId }: AnnotationCanvasProps) {
     [enabled, color, width, localParticipant?.identity],
   );
 
+  // requestAnimationFrame-throttled tick. We mutate `drawingRef` synchronously
+  // and only ask React to re-render once per frame — pointermove can fire
+  // hundreds of times per second on touch screens.
+  const rafScheduled = useRef(false);
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       if (!drawingRef.current || !enabled) return;
@@ -184,8 +173,16 @@ export function AnnotationCanvas({ channelId }: AnnotationCanvasProps) {
         x: (e.clientX - rect.left) / rect.width,
         y: (e.clientY - rect.top) / rect.height,
       });
-      // trigger re-render
-      setStrokes((prev) => [...prev]);
+      if (!rafScheduled.current) {
+        rafScheduled.current = true;
+        window.requestAnimationFrame(() => {
+          rafScheduled.current = false;
+          // No-op state update is enough to re-paint the canvas via the
+          // [strokes]-dependent useEffect; using the same array ref keeps
+          // state cheap.
+          setStrokes((prev) => prev.slice());
+        });
+      }
     },
     [enabled],
   );

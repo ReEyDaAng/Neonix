@@ -46,7 +46,8 @@ function onRenderCallback(
   startTime: number,
   commitTime: number,
 ) {
-  // Log performance metrics for profiling
+  // Dev-only: profiler should never spam production console.
+  if (process.env.NODE_ENV === "production") return;
   if (phase === "mount" || phase === "update") {
     console.log(`[React] ${id} ${phase} ${actualDuration.toFixed(2)}ms (base: ${baseDuration.toFixed(2)}ms, start: ${startTime}, commit: ${commitTime})`);
   }
@@ -78,6 +79,9 @@ export default function ChatPage() {
 
   // unread (мінімально: рахуємо на рівні channelId)
   const [unread, setUnread] = useState<Record<string, number>>({});
+
+  // mobile drawer state — controls which panel is overlaid on top on small screens
+  const [mobileDrawer, setMobileDrawer] = useState<"servers" | "channels" | null>(null);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -172,6 +176,19 @@ export default function ChatPage() {
     };
   }, [roomId, channelId, channelsHidden]);
 
+  // Refs that always reflect the latest selection — read by socket handlers
+  // so they don't capture stale closures.
+  const roomIdRef = useRef(roomId);
+  const channelIdRef = useRef(channelId);
+  const channelsHiddenRef = useRef(channelsHidden);
+  const meNameRef = useRef(meName);
+  useEffect(() => {
+    roomIdRef.current = roomId;
+    channelIdRef.current = channelId;
+    channelsHiddenRef.current = channelsHidden;
+    meNameRef.current = meName;
+  }, [roomId, channelId, channelsHidden, meName]);
+
   // ---------- WS connect once (after auth is ready) ----------
   useEffect(() => {
     if (!ready || !token) return;
@@ -183,23 +200,23 @@ export default function ChatPage() {
     });
     socketRef.current = s;
 
-    s.on("connect", () => {
-      // join буде в ефекті нижче
-    });
-
     s.on("message", (msg: Message) => {
-      // Додаємо roomId і channelId з контексту, якщо їх немає
-      const msgWithIds = { ...msg, roomId, channelId };
+      // Read live values from refs — closure captured at connect-time would
+      // otherwise stick to the original room/channel.
+      const liveRoomId = roomIdRef.current;
+      const liveChannelId = channelIdRef.current;
+      const liveChannelsHidden = channelsHiddenRef.current;
+
+      const msgWithIds = { ...msg, roomId: liveRoomId, channelId: liveChannelId };
       setMessages((prev) => {
         if (prev.some((p) => p.id === msgWithIds.id)) return prev;
         return [...prev, msgWithIds];
       });
 
-      // unread, якщо повідомлення не в активному каналі або чат “закритий”
       const isCurrent =
-        msgWithIds.roomId === roomId &&
-        msgWithIds.channelId === channelId &&
-        !channelsHidden;
+        msgWithIds.roomId === liveRoomId &&
+        msgWithIds.channelId === liveChannelId &&
+        !liveChannelsHidden;
 
       if (!isCurrent) {
         setUnread((prev) => ({
@@ -211,7 +228,7 @@ export default function ChatPage() {
 
     s.on("typing", (payload: { who: string; typing: boolean }) => {
       const who = payload?.who?.trim();
-      if (!who || who === meName) return;
+      if (!who || who === meNameRef.current) return;
 
       setTypingUsers((prev) => {
         const has = prev.includes(who);
@@ -221,18 +238,31 @@ export default function ChatPage() {
       });
     });
 
-    // room-level (необов’язково, але корисно)
     s.on("roomMessage", (payload: { roomId: string; channelId: string }) => {
-      // якщо ти захочеш робити unread “на сервері”, тут можна апдейтити
-      // зараз ми вже рахуємо unread по "message"
       void payload;
     });
 
+    s.on("disconnect", () => {
+      // Soft-reset transient UI state; reconnect will be handled by the engine.
+      setTypingUsers([]);
+    });
+
+    // Tear down when token changes (logout/login) or component unmounts.
     return () => {
       s.disconnect();
       socketRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, token]);
+
+  // Listen for app-level signOut to drop the socket immediately
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onSignedOut = () => {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+    };
+    window.addEventListener("nx:signedOut", onSignedOut);
+    return () => window.removeEventListener("nx:signedOut", onSignedOut);
   }, []);
 
   // ---------- WS re-join on selection ----------
@@ -262,6 +292,8 @@ export default function ChatPage() {
     setChannelsHidden(false);
     setChannelId("");
     setTypingUsers([]);
+    // After picking a server on mobile, swap drawer to channel list
+    setMobileDrawer((d) => (d === "servers" ? "channels" : d));
   }
 
   function openChannel(id: string) {
@@ -269,6 +301,8 @@ export default function ChatPage() {
     setChannelId(id);
     setTypingUsers([]);
     setUnread((prev) => ({ ...prev, [id]: 0 }));
+    // Close mobile drawer once user has picked a channel
+    setMobileDrawer(null);
   }
 
   const send = useCallback(() => {
@@ -332,7 +366,18 @@ export default function ChatPage() {
 
   return (
     <section className="page chatPage" aria-label="Chat">
-      <div className={"shell " + `state-${viewState} ` + (channelsHidden ? "channels-hidden" : "")}>
+      {mobileDrawer && (
+        <div
+          className="shell-backdrop"
+          aria-hidden="true"
+          onClick={() => setMobileDrawer(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 58 }}
+        />
+      )}
+      <div
+        className={"shell " + `state-${viewState} ` + (channelsHidden ? "channels-hidden" : "")}
+        data-mobile-drawer={mobileDrawer ?? undefined}
+      >
         {/* LEFT: Servers */}
         <aside className="panel serversBar" aria-label="Servers">
           <div className="phd">
@@ -471,7 +516,28 @@ export default function ChatPage() {
         {/* MAIN */}
         <main className="panel" aria-label="Chat panel">
           <div className="chatHeader">
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "1 1 auto", minWidth: 0 }}>
+              <button
+                type="button"
+                className="chat-mobile-toggle"
+                aria-label="Open servers"
+                title="Servers"
+                onClick={() => setMobileDrawer((d) => (d === "servers" ? null : "servers"))}
+              >
+                ☰
+              </button>
+              {viewState !== "home" && (
+                <button
+                  type="button"
+                  className="chat-mobile-toggle"
+                  aria-label="Open channels"
+                  title="Channels"
+                  onClick={() => setMobileDrawer((d) => (d === "channels" ? null : "channels"))}
+                >
+                  #
+                </button>
+              )}
+              <div style={{ minWidth: 0, flex: 1 }}>
               <h2 className="chatTitle">
                 {viewState === "home"
                   ? "Home"
@@ -495,6 +561,7 @@ export default function ChatPage() {
                   </button>
                 </div>
               )}
+              </div>
             </div>
 
             <div className="chatMetaRow" aria-label="Chat actions">

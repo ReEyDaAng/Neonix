@@ -14,6 +14,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto';
@@ -36,10 +37,12 @@ export class AuthController {
    * @param dto User registration data
    * @returns Authentication response with token and user info
    */
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 400, description: 'Email already registered' })
+  @ApiResponse({ status: 429, description: 'Too many registration attempts' })
   @ApiBody({ type: RegisterDto, description: 'User registration payload' })
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto.email, dto.password, dto.displayName);
@@ -50,10 +53,12 @@ export class AuthController {
    * @param dto User login credentials
    * @returns Authentication response with token and user info
    */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('login')
   @ApiOperation({ summary: 'Login a user' })
   @ApiResponse({ status: 200, description: 'User logged in successfully' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Too many login attempts' })
   @ApiBody({ type: LoginDto, description: 'User login payload' })
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto.email, dto.password);

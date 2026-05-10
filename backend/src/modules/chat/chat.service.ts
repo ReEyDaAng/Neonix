@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../modules/prisma/prisma.service';
+import { AppLoggerService } from '../../common/logger/logger.service';
 
 /**
  * Service that manages room, channel, and message data through Prisma.
@@ -11,8 +12,12 @@ export class ChatService {
   /**
    * Constructor for ChatService.
    * @param prisma Prisma service instance
+   * @param logger Application logger
    */
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly logger: AppLoggerService,
+  ) {}
 
   /**
    * Seed default rooms, channels, and sample message when database empty.
@@ -78,7 +83,9 @@ export class ChatService {
     await this.ensureSeed();
     const result = this.prisma.room.findMany({ orderBy: { createdAt: 'asc' } });
     const duration = performance.now() - start;
-    console.log(`[PERF] listRooms took ${duration.toFixed(2)}ms`);
+    this.logger.debug('listRooms timing', 'ChatService', {
+      durationMs: Math.round(duration),
+    });
     return result;
   }
 
@@ -96,9 +103,10 @@ export class ChatService {
       orderBy: { createdAt: 'asc' },
     });
     const duration = performance.now() - start;
-    console.log(
-      `[PERF] listChannels(roomId=${roomId}) took ${duration.toFixed(2)}ms`,
-    );
+    this.logger.debug('listChannels timing', 'ChatService', {
+      roomId,
+      durationMs: Math.round(duration),
+    });
     return result;
   }
 
@@ -127,10 +135,11 @@ export class ChatService {
       take: limit,
     });
     const duration = performance.now() - start;
-    const memUsage = process.memoryUsage();
-    console.log(
-      `[PERF] listMessages(roomId=${roomId}, channelId=${channelId}) took ${duration.toFixed(2)}ms, heapUsed: ${(memUsage.heapUsed / 1024 / 1024).toFixed(2)}MB, rss: ${(memUsage.rss / 1024 / 1024).toFixed(2)}MB`,
-    );
+    this.logger.debug('listMessages timing', 'ChatService', {
+      roomId,
+      channelId,
+      durationMs: Math.round(duration),
+    });
     return result;
   }
 
@@ -167,7 +176,11 @@ export class ChatService {
       },
     });
     const duration = performance.now() - start;
-    console.log(`[PERF] sendMessage took ${duration.toFixed(2)}ms`);
+    this.logger.debug('sendMessage timing', 'ChatService', {
+      roomId,
+      channelId,
+      durationMs: Math.round(duration),
+    });
     return result;
   }
 }

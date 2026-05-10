@@ -21,9 +21,6 @@ keys: {}
 # Redis is used by LiveKit for room state when the server is run in cluster mode.
 # We keep it on for parity with future scale-out, on a dedicated DB index so it
 # does not collide with the Socket.IO Redis adapter (DB 0).
-redis:
-  address: redis:6379
-  db: 1
 
 # We do NOT enable LiveKit's embedded TURN — coturn runs as a dedicated service
 # and is reachable over a public hostname.
