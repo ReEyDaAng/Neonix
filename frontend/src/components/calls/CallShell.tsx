@@ -9,7 +9,12 @@ import {
   RoomAudioRenderer,
   useTracks,
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import {
+  AudioPresets,
+  Track,
+  VideoPresets,
+  type RoomOptions,
+} from "livekit-client";
 import "@livekit/components-styles";
 import { api, type Channel } from "@/lib/api";
 import { useCalls } from "@/state/calls";
@@ -19,6 +24,46 @@ import { CallSidePanel } from "./CallSidePanel";
 
 const LIVEKIT_FALLBACK_URL =
   process.env.NEXT_PUBLIC_LIVEKIT_URL || "ws://localhost:7880";
+
+/**
+ * High-quality publish defaults for camera, mic, and screen share.
+ *
+ * - Camera: 720p @30fps with simulcast layers (540p / 216p) so SFU can
+ *   downgrade automatically for participants on poor networks. VP9 codec
+ *   if the browser supports it (better quality at the same bitrate).
+ * - Audio: musicHighQuality preset (Opus 128 kbps stereo) plus echo
+ *   cancellation + noise suppression + auto gain control.
+ * - Screen share: 1080p @30fps capped at 3 Mbps so the SFU upload remains
+ *   reasonable for ~30 viewers, with the `detail` content hint so the
+ *   browser preserves text clarity instead of motion smoothness.
+ *
+ * `adaptiveStream` lets the LiveKit client dynamically pause/resume tracks
+ * that are off-screen to save bandwidth; `dynacast` lets the SFU stop
+ * forwarding simulcast layers nobody is consuming.
+ */
+const ROOM_OPTIONS: RoomOptions = {
+  adaptiveStream: true,
+  dynacast: true,
+  videoCaptureDefaults: {
+    resolution: VideoPresets.h720.resolution,
+  },
+  audioCaptureDefaults: {
+    autoGainControl: true,
+    echoCancellation: true,
+    noiseSuppression: true,
+  },
+  publishDefaults: {
+    videoCodec: "vp9",
+    videoSimulcastLayers: [VideoPresets.h540, VideoPresets.h216],
+    screenShareEncoding: {
+      maxBitrate: 3_000_000,
+      maxFramerate: 30,
+    },
+    audioPreset: AudioPresets.musicHighQuality,
+    dtx: true,
+    red: true,
+  },
+};
 
 interface CallShellProps {
   channel: Channel;
@@ -105,6 +150,7 @@ export function CallShell({ channel, onClose }: CallShellProps) {
       <LiveKitRoom
         token={token}
         serverUrl={serverUrl}
+        options={ROOM_OPTIONS}
         connect
         audio
         video={isVideo}

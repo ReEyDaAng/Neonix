@@ -80,16 +80,41 @@
   .brand .sub {
     display: none;
   }
+  .brand .word > span:first-child {
+    font-size: 14px;
+  }
 
+  .actions {
+    gap: 6px;
+  }
   .actions > a.btn.primary {
     /* keep primary CTA; collapse text */
     padding: 8px 12px;
+    font-size: 12px;
   }
-
-  /* Settings cog button can drop label on tiniest screens */
-  .actions > button.btn[title="Language"]::after,
   .actions > button.btn:not(.primary) {
-    font-size: 13px;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Below 420px the layout has burger + brand + 3 action buttons + primary CTA —
+     too much. Hide the secondary "Settings" button and keep brand compact. */
+  .topbar .actions > button.btn:not(.primary) {
+    display: none;
+  }
+  .topbar .row {
+    gap: 6px;
+  }
+  .actions > a.btn.primary {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  /* Burger should still be the leftmost item, then brand */
+  .brand .logoDot {
+    width: 11px;
+    height: 11px;
   }
 }
 
