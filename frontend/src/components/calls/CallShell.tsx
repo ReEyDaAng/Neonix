@@ -404,6 +404,8 @@ function LocalQualityPill() {
     height: number;
     frameRate: number;
     codec: string;
+    capMaxWidth?: number;
+    capMaxHeight?: number;
   } | null>(null);
 
   useEffect(() => {
@@ -419,6 +421,7 @@ function LocalQualityPill() {
         return;
       }
       const s = mst.getSettings();
+      const caps = typeof mst.getCapabilities === "function" ? mst.getCapabilities() : null;
       const codec = pub.mimeType?.split("/")[1]?.toUpperCase() || "VP8";
       if (
         typeof s.width === "number" &&
@@ -430,6 +433,8 @@ function LocalQualityPill() {
             height: s.height,
             frameRate: Math.round(s.frameRate ?? 30),
             codec,
+            capMaxWidth: caps?.width?.max,
+            capMaxHeight: caps?.height?.max,
           });
         }
       }
@@ -453,10 +458,15 @@ function LocalQualityPill() {
     info.height >= 360 ? "360p" :
     `${info.height}p`;
 
+  const capLabel =
+    info.capMaxHeight && info.capMaxWidth
+      ? ` · cam max ${info.capMaxWidth}×${info.capMaxHeight}`
+      : "";
+
   return (
     <span
       className="pill"
-      title={`Capture: ${info.width}×${info.height} @ ${info.frameRate} fps · codec ${info.codec}`}
+      title={`Live capture: ${info.width}×${info.height} @ ${info.frameRate} fps · codec ${info.codec}${capLabel}`}
     >
       <span className="dotMini" aria-hidden="true" />
       {heightLabel} · {info.frameRate} fps

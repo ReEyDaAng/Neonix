@@ -106,6 +106,23 @@
   height: 100%;
 }
 
+/* Override LiveKit's default object-fit: cover — that one crops + scales
+ * the video to fill the tile, which on 4:3 webcams pumped into a 16:9
+ * tile makes the picture look softer than it actually is. `contain`
+ * shows the native frame letterboxed instead, so 720p capture renders
+ * pixel-accurate (no extra upscaling blur). */
+.callShell__stage video,
+.callShell__filmTile video {
+  object-fit: contain !important;
+  background: #000;
+}
+
+/* Same for the LiveKit GridLayout tile (used when no screen share). */
+.lk-participant-tile video {
+  object-fit: contain !important;
+  background: #000;
+}
+
 .callShell__controls {
   border-top: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
