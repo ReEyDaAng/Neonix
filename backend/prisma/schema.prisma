@@ -14,6 +14,17 @@ enum ChannelKind {
   VIDEO
 }
 
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 model User {
   id          String   @id @default(uuid())
   email       String   @unique
@@ -25,6 +36,12 @@ model User {
   messages    Message[]
   annotations Annotation[]
   ownedRooms  Room[]   @relation("RoomOwner")
+
+  memberships          RoomMembership[]
+  friendshipsRequested Friendship[]     @relation("FriendshipRequester")
+  friendshipsReceived  Friendship[]     @relation("FriendshipAddressee")
+  invitationsSent      RoomInvitation[] @relation("InvitationInviter")
+  invitationsReceived  RoomInvitation[] @relation("InvitationInvitee")
 }
 
 model Room {
@@ -35,9 +52,11 @@ model Room {
   ownerId   String?
   createdAt DateTime @default(now())
 
-  owner    User?     @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  channels Channel[]
-  messages Message[]
+  owner       User?            @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  channels    Channel[]
+  messages    Message[]
+  memberships RoomMembership[]
+  invitations RoomInvitation[]
 }
 
 model Channel {
@@ -98,4 +117,56 @@ model Annotation {
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([channelId, createdAt])
+}
+
+/// Membership in a room (who can see the room and its channels).
+/// The room owner is also represented here so listings stay simple.
+model RoomMembership {
+  id       String   @id @default(uuid())
+  roomId   String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+/// One-row-per-pair friendship. A friendship goes through PENDING -> ACCEPTED.
+/// `requesterId` is the user who initiated the request.
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String
+  addresseeId String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  acceptedAt  DateTime?
+
+  requester User @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
+}
+
+/// Pending invitation from a member of a room to another user. Accepting
+/// creates a `RoomMembership` row.
+model RoomInvitation {
+  id          String           @id @default(uuid())
+  roomId      String
+  inviterId   String
+  inviteeId   String
+  status      InvitationStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  respondedAt DateTime?
+
+  room    Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  inviter User @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee User @relation("InvitationInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, inviteeId])
+  @@index([inviteeId, status])
 }

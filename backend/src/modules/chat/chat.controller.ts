@@ -39,15 +39,18 @@ export class ChatController {
 
   /**
    * Retrieves list of all chat rooms.
+   * @param req
    * @returns Array of room objects
    */
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get('rooms')
-  @ApiOperation({ summary: 'Get list of rooms (authenticated)' })
+  @ApiOperation({ summary: 'Get the rooms the current user is a member of' })
   @ApiResponse({ status: 200, description: 'Rooms fetched' })
-  rooms() {
-    return this.chat.listRooms();
+  rooms(@Req() req: Request) {
+    const userId = req.user?.id;
+    if (!userId) throw new UnauthorizedException();
+    return this.chat.listRoomsForUser(userId);
   }
 
   /**
@@ -92,14 +95,18 @@ export class ChatController {
   /**
    * Retrieves list of channels in a specific room.
    * @param roomId Room identifier
+   * @param req
    * @returns Array of channel objects
    */
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get('rooms/:roomId/channels')
-  @ApiOperation({ summary: 'Get list of channels in a room (authenticated)' })
+  @ApiOperation({ summary: 'Get list of channels in a room (members only)' })
   @ApiResponse({ status: 200, description: 'Channels fetched' })
-  channels(@Param('roomId') roomId: string) {
+  async channels(@Param('roomId') roomId: string, @Req() req: Request) {
+    const userId = req.user?.id;
+    if (!userId) throw new UnauthorizedException();
+    await this.chat.assertMembership(userId, roomId);
     return this.chat.listChannels(roomId);
   }
 
@@ -107,17 +114,22 @@ export class ChatController {
    * Create a new channel inside a room.
    * @param roomId target room id (URL param)
    * @param dto channel payload (name + kind)
+   * @param req
    * @returns created channel
    */
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post('rooms/:roomId/channels')
-  @ApiOperation({ summary: 'Create a new channel (authenticated)' })
+  @ApiOperation({ summary: 'Create a new channel (members only)' })
   @ApiResponse({ status: 201, description: 'Channel created' })
-  createChannel(
+  async createChannel(
     @Param('roomId') roomId: string,
     @Body() dto: CreateChannelDto,
+    @Req() req: Request,
   ) {
+    const userId = req.user?.id;
+    if (!userId) throw new UnauthorizedException();
+    await this.chat.assertMembership(userId, roomId);
     return this.chat.createChannel(roomId, dto.name, dto.kind);
   }
 
@@ -125,19 +137,24 @@ export class ChatController {
    * Retrieves messages in a specific channel.
    * @param roomId Room identifier
    * @param channelId Channel identifier
+   * @param req
    * @param limit Optional limit (clamped to 1-200, default 50)
    * @returns Array of message objects
    */
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get('rooms/:roomId/channels/:channelId/messages')
-  @ApiOperation({ summary: 'Get messages in a channel (authenticated)' })
+  @ApiOperation({ summary: 'Get messages in a channel (members only)' })
   @ApiResponse({ status: 200, description: 'Messages fetched' })
-  messages(
+  async messages(
     @Param('roomId') roomId: string,
     @Param('channelId') channelId: string,
+    @Req() req: Request,
     @Query('limit') limit?: string,
   ) {
+    const userId = req.user?.id;
+    if (!userId) throw new UnauthorizedException();
+    await this.chat.assertMembership(userId, roomId);
     const parsed = limit ? parseInt(limit, 10) : 50;
     const limitNum = Math.min(
       Math.max(Number.isFinite(parsed) ? parsed : 50, 1),
@@ -171,6 +188,9 @@ export class ChatController {
     @Body() body: SendMessageDto,
     @Req() req: Request,
   ) {
+    if (req.user?.id) {
+      await this.chat.assertMembership(req.user.id, roomId);
+    }
     const userId = req.user?.id;
     if (!userId) {
       throw new UnauthorizedException();

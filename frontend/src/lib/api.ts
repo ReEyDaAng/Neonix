@@ -80,6 +80,35 @@ export interface CallStateResponse {
 }
 
 /**
+ * Mini-profile of another user — never includes email/password.
+ */
+export interface PublicUserMini {
+  id: string;
+  displayName: string;
+  username: string;
+}
+
+/**
+ * Snapshot of the social graph from the current user's perspective.
+ */
+export interface FriendsSnapshot {
+  friends: { friendshipId: string; user: PublicUserMini }[];
+  incoming: { friendshipId: string; user: PublicUserMini; createdAt: string }[];
+  outgoing: { friendshipId: string; user: PublicUserMini; createdAt: string }[];
+}
+
+/**
+ * Pending invitation as returned by `GET /me/invitations`.
+ */
+export interface IncomingInvitation {
+  id: string;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  createdAt: string;
+  room: { id: string; name: string; meta: string; badge: string };
+  inviter: PublicUserMini;
+}
+
+/**
  * Custom error thrown by `http()` so callers can branch on status / kind.
  *
  * The constructor tries to parse the response body as a NestJS exception
@@ -258,6 +287,93 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
+  },
+  social: {
+    /**
+     * Search users by displayName/username/email (>=2 chars).
+     * @param q query
+     * @returns up to 20 mini-profiles
+     */
+    searchUsers: (q: string) =>
+      http<PublicUserMini[]>(`/users/search?q=${encodeURIComponent(q)}`),
+    /**
+     * List friends and pending requests (incoming + outgoing).
+     * @returns snapshot of the social graph
+     */
+    listFriends: () => http<FriendsSnapshot>("/me/friends"),
+    /**
+     * Send a friend request by username or email.
+     * @param body identifier
+     * @returns created friendship row
+     */
+    sendFriendRequest: (body: { username?: string; email?: string }) =>
+      http<{ id: string; status: string }>("/me/friends/requests", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    /**
+     * Accept a pending friend request.
+     * @param friendshipId target row
+     */
+    acceptFriendRequest: (friendshipId: string) =>
+      http<{ id: string }>(
+        `/me/friends/requests/${friendshipId}/accept`,
+        { method: "POST" },
+      ),
+    /**
+     * Decline (remove) a pending friend request.
+     * @param friendshipId target row
+     */
+    declineFriendRequest: (friendshipId: string) =>
+      http<{ ok: true }>(
+        `/me/friends/requests/${friendshipId}/decline`,
+        { method: "POST" },
+      ),
+    /**
+     * Remove an existing friend.
+     * @param userId other user id
+     */
+    removeFriend: (userId: string) =>
+      http<{ ok: true }>(`/me/friends/${userId}`, { method: "DELETE" }),
+    /**
+     * Invite a user to a server (caller must be a member).
+     * @param roomId target room
+     * @param inviteeId user to invite
+     */
+    invite: (roomId: string, inviteeId: string) =>
+      http<{ id: string }>(`/rooms/${roomId}/invitations`, {
+        method: "POST",
+        body: JSON.stringify({ inviteeId }),
+      }),
+    /**
+     * List members of a room.
+     * @param roomId target room
+     */
+    members: (roomId: string) =>
+      http<PublicUserMini[]>(`/rooms/${roomId}/members`),
+    /**
+     * List the user's pending server invitations.
+     */
+    listInvitations: () =>
+      http<IncomingInvitation[]>("/me/invitations"),
+    /**
+     * Accept an invitation — server creates the membership row.
+     * @param invitationId target invitation
+     */
+    acceptInvitation: (invitationId: string) =>
+      http<{ roomId: string }>(
+        `/me/invitations/${invitationId}/accept`,
+        { method: "POST" },
+      ),
+    /**
+     * Decline an invitation.
+     * @param invitationId target invitation
+     */
+    declineInvitation: (invitationId: string) =>
+      http<{ ok: true }>(
+        `/me/invitations/${invitationId}/decline`,
+        { method: "POST" },
+      ),
   },
   calls: {
     /**

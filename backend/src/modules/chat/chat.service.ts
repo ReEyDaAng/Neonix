@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -82,15 +83,89 @@ export class ChatService {
    *
    * @returns rooms array
    */
-  async listRooms() {
+  /**
+   * Legacy listing — all rooms in the database. Kept only for the seed flow
+   * (admin tools / tests) and not exposed by the controller.
+   */
+  async listAllRooms() {
+    await this.ensureSeed();
+    return this.prisma.room.findMany({ orderBy: { createdAt: 'asc' } });
+  }
+
+  /**
+   * Membership-aware listing: returns only the rooms the user belongs to.
+   * The seed runs on first call so a brand-new database still produces
+   * sample rooms — those rooms get auto-membership for the seed user
+   * lazily on first access (see {@link ensureSeedMembership}).
+   *
+   * @param userId authenticated user id
+   * @returns rooms the user is a member of, ordered oldest-first
+   */
+  async listRoomsForUser(userId: string) {
     const start = performance.now();
     await this.ensureSeed();
-    const result = this.prisma.room.findMany({ orderBy: { createdAt: 'asc' } });
+    await this.ensureSeedMembership(userId);
+    const result = await this.prisma.room.findMany({
+      where: { memberships: { some: { userId } } },
+      orderBy: { createdAt: 'asc' },
+    });
     const duration = performance.now() - start;
-    this.logger.debug('listRooms timing', 'ChatService', {
+    this.logger.debug('listRoomsForUser timing', 'ChatService', {
+      userId,
+      count: result.length,
       durationMs: Math.round(duration),
     });
     return result;
+  }
+
+  /**
+   * Throws if the user is not a member of the given room.
+   *
+   * @param userId actor
+   * @param roomId target room
+   * @throws ForbiddenException when membership row is missing
+   */
+  async assertMembership(userId: string, roomId: string): Promise<void> {
+    const m = await this.prisma.roomMembership.findUnique({
+      where: { roomId_userId: { roomId, userId } },
+    });
+    if (!m) {
+      throw new ForbiddenException('You are not a member of this server');
+    }
+  }
+
+  /**
+   * Quick boolean check that does not throw.
+   *
+   * @param userId actor
+   * @param roomId target room
+   * @returns whether the user is a member
+   */
+  async isMember(userId: string, roomId: string): Promise<boolean> {
+    const m = await this.prisma.roomMembership.findUnique({
+      where: { roomId_userId: { roomId, userId } },
+    });
+    return Boolean(m);
+  }
+
+  /**
+   * Idempotently grant membership in every existing seed room to a brand-new
+   * user. Without this, fresh accounts would land in the chat with zero
+   * visible servers and no obvious next step. The "seed" rooms are detected
+   * by their lack of an owner (created via `ensureSeed`).
+   *
+   * @param userId user that just signed in for the first time
+   */
+  private async ensureSeedMembership(userId: string): Promise<void> {
+    const seedRooms = await this.prisma.room.findMany({
+      where: { ownerId: null },
+      select: { id: true },
+    });
+    if (seedRooms.length === 0) return;
+    await this.prisma.roomMembership.createMany({
+      data: seedRooms.map((r) => ({ roomId: r.id, userId })),
+      skipDuplicates: true,
+    });
   }
 
   /**
@@ -228,6 +303,15 @@ export class ChatService {
     await this.prisma.channel.create({
       data: { roomId: room.id, name: 'general', kind: 'TEXT' },
     });
+
+    // Auto-grant membership to the creator — without this they would create
+    // a server they could not see (because room listings are now membership-
+    // filtered).
+    if (ownerId) {
+      await this.prisma.roomMembership.create({
+        data: { roomId: room.id, userId: ownerId },
+      });
+    }
 
     this.logger.log('Room created', 'ChatService', {
       roomId: room.id,

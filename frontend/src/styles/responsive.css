@@ -106,6 +106,170 @@
   line-height: 1.5;
 }
 
+/* ===========================================================
+ * Friends side panel — replaces the static Friends card
+ * =========================================================== */
+
+.friendsPanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.friendsPanel__badge {
+  background: color-mix(in srgb, var(--accent2) calc(40% * var(--glow)), var(--card2));
+  border-color: color-mix(in srgb, var(--accent2) calc(60% * var(--glow)), var(--border));
+  color: var(--accent2);
+  font-weight: 700;
+}
+
+.friendsPanel__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px 8px;
+}
+
+.friendsPanel__tab {
+  flex: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.friendsPanel__tab:hover {
+  background: var(--card);
+  color: var(--text);
+}
+
+.friendsPanel__tab.active {
+  background: var(--card2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.friendsPanel__count {
+  font-size: 10px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-weight: 700;
+}
+
+.friendsPanel__count.attn {
+  background: color-mix(in srgb, var(--accent2) calc(20% * var(--glow)), var(--card2));
+  border-color: color-mix(in srgb, var(--accent2) calc(50% * var(--glow)), var(--border));
+  color: var(--accent2);
+}
+
+.friendsPanel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.friendsPanel__search input {
+  font-size: 13px;
+  padding: 9px 12px;
+}
+
+.friendsPanel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.friendsPanel__row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.friendsPanel__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 25%, transparent), color-mix(in srgb, var(--accent2) 25%, transparent));
+  color: var(--text);
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.friendsPanel__avatar.squared {
+  border-radius: 10px;
+}
+
+.friendsPanel__avatar.online::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #23a55a;
+  border: 2px solid var(--bg);
+}
+
+.friendsPanel__info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.friendsPanel__info b {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friendsPanel__info .muted {
+  font-size: 11px;
+}
+
+.friendsPanel__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.friendsPanel__actions .btn {
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+@media (max-width: 1160px) {
+  /* Right column hides under 1160 — globals.css already does this, but
+   * ensure the panel doesn't cause layout to overflow the grid. */
+  .friendsPanel {
+    display: none;
+  }
+}
+
 /* Channel kind radio picker (Text / Voice / Video) */
 .kindPicker {
   display: grid;

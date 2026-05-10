@@ -6,6 +6,7 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { CallsModule } from './modules/calls/calls.module';
+import { SocialModule } from './modules/social/social.module';
 import { LoggerModule } from './common/logger/logger.module';
 
 /**
@@ -25,6 +26,7 @@ import { LoggerModule } from './common/logger/logger.module';
     AuthModule,
     ChatModule,
     CallsModule,
+    SocialModule,
     LoggerModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

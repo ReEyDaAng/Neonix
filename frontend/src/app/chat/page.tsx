@@ -6,6 +6,7 @@ import { io, Socket } from "socket.io-client";
 import { api } from "@/lib/api";
 import { useAuth } from "@/state/auth";
 import { useCalls } from "@/state/calls";
+import { FriendsPanel } from "@/components/social/FriendsPanel";
 import type { Room, RoomWithOwner, Channel, Message as ApiMessage } from "@/lib/api";
 
 // Locally extend Message to include roomId and channelId for state
@@ -102,19 +103,31 @@ export default function ChatPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsRoom, setSettingsRoom] = useState<RoomWithOwner | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsMembers, setSettingsMembers] = useState<{ id: string; displayName: string; username: string }[]>([]);
+  const [settingsFriends, setSettingsFriends] = useState<{ user: { id: string; displayName: string; username: string } }[]>([]);
+  const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [invitedUserIds, setInvitedUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!showSettings || !roomId) return;
     let alive = true;
     setSettingsLoading(true);
     setSettingsRoom(null);
-    api.chat
-      .room(roomId)
-      .then((r) => {
-        if (alive) setSettingsRoom(r);
-      })
-      .catch(() => {
-        if (alive) setSettingsRoom(null);
+    setSettingsMembers([]);
+    setSettingsFriends([]);
+    setInviteError(null);
+    setInvitedUserIds(new Set());
+    Promise.all([
+      api.chat.room(roomId),
+      api.social.members(roomId).catch(() => []),
+      api.social.listFriends().catch(() => ({ friends: [], incoming: [], outgoing: [] })),
+    ])
+      .then(([r, members, friendsSnapshot]) => {
+        if (!alive) return;
+        setSettingsRoom(r);
+        setSettingsMembers(members);
+        setSettingsFriends(friendsSnapshot.friends);
       })
       .finally(() => {
         if (alive) setSettingsLoading(false);
@@ -123,6 +136,24 @@ export default function ChatPage() {
       alive = false;
     };
   }, [showSettings, roomId]);
+
+  async function inviteFriend(friendUserId: string) {
+    if (!roomId) return;
+    setInviteBusyId(friendUserId);
+    setInviteError(null);
+    try {
+      await api.social.invite(roomId, friendUserId);
+      setInvitedUserIds((prev) => {
+        const next = new Set(prev);
+        next.add(friendUserId);
+        return next;
+      });
+    } catch (e) {
+      setInviteError(e instanceof Error ? e.message : "Failed to invite");
+    } finally {
+      setInviteBusyId(null);
+    }
+  }
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -797,32 +828,17 @@ export default function ChatPage() {
         </main>
 
         {/* RIGHT */}
-        <aside className="panel rightCol" aria-label="Right sidebar">
-          <div className="phd">
-            <b>Friends</b>
-            <span className="pill">
-              <span className="dotMini" aria-hidden="true" />
-              Online
-            </span>
-          </div>
-
-          <div className="pbd">
-            <div className="list">
-              <div className="item">
-                <b>Roma</b>
-                <div className="meta">Online • shooter mode</div>
-              </div>
-              <div className="item">
-                <b>Study group</b>
-                <div className="meta">3 online</div>
-              </div>
-              <div className="item">
-                <b>New friend</b>
-                <div className="meta">Invite link</div>
-              </div>
-            </div>
-          </div>
-        </aside>
+        <FriendsPanel
+          onInvitationAccepted={async (newRoomId) => {
+            // Refetch rooms after accepting an invitation, then jump to the
+            // newly accessible room to make the result visible.
+            const fresh = await api.chat.rooms();
+            setRooms(fresh || []);
+            setRoomId(newRoomId);
+            setChannelId("");
+            setChannelsHidden(false);
+          }}
+        />
       </div>
 
       {showSettings && (
@@ -873,6 +889,68 @@ export default function ChatPage() {
                         skeleton other roles will hang off of.
                       </div>
                     </div>
+                  </div>
+
+                  <div className="field">
+                    <label className="label">Members ({settingsMembers.length})</label>
+                    <div className="settingsField" style={{ display: "flex", flexDirection: "column", gap: 6, padding: 8 }}>
+                      {settingsMembers.length === 0 && <span className="muted">No members</span>}
+                      {settingsMembers.map((m) => (
+                        <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div className="friendsPanel__avatar" style={{ width: 26, height: 26, fontSize: 11 }}>
+                            {m.displayName.slice(0, 1).toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <b style={{ fontSize: 13 }}>{m.displayName}</b>{" "}
+                            <span className="muted" style={{ fontSize: 11 }}>{m.username}</span>
+                            {settingsRoom?.owner?.id === m.id && (
+                              <span className="pill" style={{ marginLeft: 6, fontSize: 10 }}>OWNER</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="field">
+                    <label className="label">Invite a friend</label>
+                    {settingsFriends.length === 0 ? (
+                      <div className="settingsField muted">
+                        Add friends from the right sidebar first — only friends can be invited
+                        directly. (Anyone added via username/email becomes invitable here.)
+                      </div>
+                    ) : (
+                      <div className="settingsField" style={{ display: "flex", flexDirection: "column", gap: 6, padding: 8 }}>
+                        {settingsFriends.map((f) => {
+                          const isMember = settingsMembers.some((m) => m.id === f.user.id);
+                          const wasInvited = invitedUserIds.has(f.user.id);
+                          const busy = inviteBusyId === f.user.id;
+                          return (
+                            <div key={f.user.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div className="friendsPanel__avatar" style={{ width: 26, height: 26, fontSize: 11 }}>
+                                {f.user.displayName.slice(0, 1).toUpperCase()}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <b style={{ fontSize: 13 }}>{f.user.displayName}</b>{" "}
+                                <span className="muted" style={{ fontSize: 11 }}>{f.user.username}</span>
+                              </div>
+                              <button
+                                type="button"
+                                className="btn primary"
+                                disabled={isMember || wasInvited || busy}
+                                onClick={() => inviteFriend(f.user.id)}
+                                style={{ fontSize: 11, padding: "5px 10px" }}
+                              >
+                                {isMember ? "Member" : wasInvited ? "Invited" : busy ? "…" : "Invite"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {inviteError && (
+                      <div className="hint" role="alert" style={{ color: "#ff7676" }}>{inviteError}</div>
+                    )}
                   </div>
 
                   <div className="field">
